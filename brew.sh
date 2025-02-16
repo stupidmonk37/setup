@@ -47,6 +47,28 @@ for package in "${packages[@]}"; do
     fi
 done
 
+# Get the path to Homebrew's zsh
+BREW_ZSH="$(brew --prefix)/bin/zsh"
+# Check if Homebrew's zsh is already the default shell
+if [ "$SHELL" != "$BREW_ZSH" ]; then
+    echo "Changing default shell to Homebrew zsh"
+    # Check if Homebrew's zsh is already in allowed shells
+    if ! grep -Fxq "$BREW_ZSH" /etc/shells; then
+        echo "Adding Homebrew zsh to allowed shells..."
+        echo "$BREW_ZSH" | sudo tee -a /etc/shells >/dev/null
+    fi
+    # Set the Homebrew zsh as default shell
+    chsh -s "$BREW_ZSH"
+    echo "Default shell changed to Homebrew zsh."
+else
+    echo "Homebrew zsh is already the default shell. Skipping configuration."
+fi
+
+# Run these commands in your terminal to add Homebrew to your PATH:
+#    echo >> /Users/justin/.zprofile
+#    echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> /Users/justin/.zprofile
+#    eval "$(/opt/homebrew/bin/brew shellenv)"
+
 # Define an array of applications to install using Homebrew Cask.
 apps=(
     "sublime-text"
@@ -65,21 +87,3 @@ for app in "${apps[@]}"; do
         brew install --cask "$app"
     fi
 done
-
-# Get the path to Homebrew's zsh
-BREW_ZSH="$(brew --prefix)/bin/zsh"
-# Check if Homebrew's zsh is already the default shell
-if [ "$SHELL" != "$BREW_ZSH" ]; then
-    echo "Changing default shell to Homebrew zsh"
-    # Check if Homebrew's zsh is already in allowed shells
-    if ! grep -Fxq "$BREW_ZSH" /etc/shells; then
-        echo "Adding Homebrew zsh to allowed shells..."
-        echo "$BREW_ZSH" | sudo tee -a /etc/shells >/dev/null
-    fi
-    # Set the Homebrew zsh as default shell
-    chsh -s "$BREW_ZSH"
-    echo "Default shell changed to Homebrew zsh."
-else
-    echo "Homebrew zsh is already the default shell. Skipping configuration."
-fi
-
