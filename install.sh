@@ -11,11 +11,7 @@
 dotfiledir="${HOME}/git/setup"
 
 # list of files/folders to symlink in ${homedir}
-files=(zshrc zprofile zprompt bashrc bash_profile bash_prompt aliases private)
-
-# change to the dotfiles directory
-echo "Changing to the ${dotfiledir} directory"
-cd "${dotfiledir}" || exit
+files=(vimrc zshrc zprofile zprompt aliases)
 
 # create symlinks (will overwrite old dotfiles)
 for file in "${files[@]}"; do
@@ -24,15 +20,9 @@ for file in "${files[@]}"; do
 done
 
 # Run the MacOS Script
-./macOS.sh
+#./macOS.sh
 
 # Run the Homebrew Script
 ./brew.sh
-
-# Run VS Code Script
-./vscode.sh
-
-# Run the Sublime Script
-./sublime.sh
 
 echo "Installation Complete!"
