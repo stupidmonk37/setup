@@ -15,6 +15,11 @@ else
     echo "Homebrew is already installed."
 fi
 
+# Run these commands in your terminal to add Homebrew to your PATH:
+#    echo >> $HOME/.zprofile
+#    echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> $HOME/.zprofile
+#    eval "$(/opt/homebrew/bin/brew shellenv)"
+
 # Verify brew is now accessible
 if ! command -v brew &>/dev/null; then
     echo "Failed to configure Homebrew in PATH. Please add Homebrew to your PATH manually."
@@ -63,11 +68,6 @@ if [ "$SHELL" != "$BREW_ZSH" ]; then
 else
     echo "Homebrew zsh is already the default shell. Skipping configuration."
 fi
-
-# Run these commands in your terminal to add Homebrew to your PATH:
-#    echo >> /Users/justin/.zprofile
-#    echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> /Users/justin/.zprofile
-#    eval "$(/opt/homebrew/bin/brew shellenv)"
 
 # Define an array of applications to install using Homebrew Cask.
 apps=(
