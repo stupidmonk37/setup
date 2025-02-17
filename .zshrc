@@ -1,3 +1,9 @@
+PROMPT='%(?.%F{green}⏺.%F{red}⏺)%f %2~/ > '
+RPROMPT="%t"
+
+#original prompt
+#PROMPT='%n@%m %1~ %# '
+
 autoload -Uz colors && colors
 setopt PROMPT_SUBST
 
