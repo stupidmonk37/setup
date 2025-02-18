@@ -1,10 +1,14 @@
 # GROQ
 PATH="$HOME/bin:$PATH"
+# silence sft if it's not installed
+if ! command -v sft >/dev/null; then
+  sft() { :; }
+fi
 sft ssh-config >> ~/.ssh/config
 autoload -Uz compinit
 compinit
 export nova_ncp_reg="N[0-9]/C[0-9]/P[0-9]+ <-> N[0-9]/C[0-9]/P[0-9]+"
-source <(kubectl completion zsh)
+#source <(kubectl completion zsh)
 
 
 
@@ -14,6 +18,8 @@ source <(kubectl completion zsh)
 # not sure what i did
 autoload -Uz colors && colors
 setopt PROMPT_SUBST
+# make '#' work in interactive shells
+setopt INTERACTIVE_COMMENTS
 
 # Colorful grep
 export GREP_COLOR='1;35;40'
