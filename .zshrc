@@ -8,8 +8,10 @@ autoload -Uz colors && colors
 setopt PROMPT_SUBST
 
 # Colorful grep
-export GREP_OPTIONS='--color=always'
 export GREP_COLOR='1;35;40'
+alias grep="grep --color=auto"
+alias egrep="grep --color=auto"
+alias fgrep="grep --color=auto"
 
 # Load dotfiles:
 for file in ~/.{zprompt,aliases,private}; do
@@ -17,13 +19,10 @@ for file in ~/.{zprompt,aliases,private}; do
 done
 unset file
 
-# Always enable colored `grep` output
-#alias grep='grep -G'
-#alias fgrep='fgrep -G'
-#alias egrep='egrep -G'
-
 # List all files colorized in long format, including dot files
-alias la="ls -lAhGT"
+alias ll="ls -alhG"
 
 # ls in color
+export LSCOLORS="ExGxxxxxCxxxxxxxxxxxxx"
 alias ls="ls -G"
+
