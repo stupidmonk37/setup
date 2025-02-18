@@ -23,6 +23,6 @@ done
 #./macOS.sh
 
 # Run the Homebrew Script
-./brew.sh
+#./brew.sh
 
 echo "Installation Complete!"
