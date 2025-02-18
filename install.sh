@@ -20,9 +20,9 @@ for file in "${files[@]}"; do
 done
 
 # Run the MacOS Script
-#./macOS.sh
+./macOS.sh
 
 # Run the Homebrew Script
-#./brew.sh
+./brew.sh
 
 echo "Installation Complete!"
