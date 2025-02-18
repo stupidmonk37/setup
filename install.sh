@@ -11,7 +11,7 @@
 dotfiledir="${HOME}/git/setup"
 
 # list of files/folders to symlink in ${homedir}
-files=(vimrc zshrc zprofile aliases)
+files=(vimrc zshrc zprofile zprompt aliases)
 
 # create symlinks (will overwrite old dotfiles)
 for file in "${files[@]}"; do
