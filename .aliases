@@ -1,0 +1,10 @@
+#grep with color
+alias grep="grep --color=auto"
+alias egrep="grep --color=auto"
+alias fgrep="grep --color=auto"
+
+# List all files colorized and in long format
+alias ll="ls -alhG"
+
+# ls with color
+alias ls="ls -G"
