@@ -2,6 +2,12 @@
 
 rack="$1"
 
+# check if a rack name is provided
+if [ -z "$rack" ]; then
+    echo "Usage: $0 <rack-name>"
+    exit 1
+fi
+
 # Print an empty line
 echo ""
 
@@ -21,7 +27,7 @@ echo ""
 
 # Display NODES information
 echo "### NODES ###"
-kubectl get nodes -n groq-system | grep "$rack"
+kubectl get nodes | grep "$rack"
 
 # Print an empty line
 echo ""
