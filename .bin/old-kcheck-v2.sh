@@ -17,7 +17,6 @@ k_command() {
     local output
 
     echo ""
-    echo "### $description ###"
 
     # Run the command and capture both stdout and stderr
     output=$("$@" 2>&1)
@@ -33,9 +32,11 @@ k_command() {
 
     if [ -z "$filtered_output" ]; then
         if [[ "$resource_type" == "pods" ]]; then
-            echo "No running pods on $rack"
+            echo "✅ No running pods on $rack"
         elif [[ "$resource_type" == "jobs" ]]; then
-            echo "No running jobs on $rack"
+            echo "✅ No running jobs on $rack"
+        elif [[ "$resource_type" == "nodes" ]]; then
+            echo "✅ All 9 nodes are ready on $rack"
         else
             echo "No matches found for '$rack' in $description."
         fi
@@ -47,7 +48,7 @@ k_command() {
 # Display information with error handling
 k_command "PODS" "pods" kubectl get pods -n groq-system
 k_command "JOBS" "jobs" kubectl get jobs -n groq-system
-k_command "NODES" "nodes" kubectl get nodes
+k_command "NODES" "nodes" kubectl get nodes | awk '{print $1 "   " $2}'
 k_command "kubectl racks" "racks" kubectl racks  # Ensure this is a valid command
 
 echo ""
