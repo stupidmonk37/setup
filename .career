@@ -1,0 +1,18 @@
+2025:
+
+- Spent 2.5 weeks at DMM1 for dc turnup which included:
+	- Built cable bundles for groq-rack -> switches.
+	- Cabled triple-rack (1GB and 100GB) from nodes to switches.
+	- Organized inventory.
+	- Received semis with supplies and gear and coordinated with Edgenex to get the supplies to the correct location
+	- Assembled misc. shelving and tools for setting up the storage rooms 
+	- Acted as remote hands and completed break-fix tickets created during rack validation.
+	- Trained UST (remote hands) on Jira process / workflow.
+	- Trained UST on how to repair nodes and what type of Jira tickets they'll encounter.
+	- Validated racks while on site in order to quickly resolve physical issues that arose from testing.
+- Once back home, I adjusted my schedule to align with the onsite team at DMM1 so we could collaborate on issues and validated/repair racks at the same time. This allowed more racks to be fixed while staff was onsite, reducing turnup time.
+- My efforts at DMM1 were such that I received 3 shoutouts from:
+	1. Brent - During a DC-Ops townhall for my ability to work without instruction and as the only sys-admin on site for 1 week at DMM1.
+	2. Jakob - In the Aramco Slack channel for training the UST team on Jira and ticketing processes. 
+	3. Kyle - In #cheers-for-peers for my dedication to the project and willingness to help and train others.
+- Collaborated validation efforts of MSP2

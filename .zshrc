@@ -12,7 +12,6 @@ source <(kubectl completion zsh)
 
 
 
-
 # HOME
 # .bin stuff
 PATH="$HOME/.bin:$PATH"
