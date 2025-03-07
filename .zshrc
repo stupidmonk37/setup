@@ -14,6 +14,17 @@ compinit
 # regex for something I don't remember right now...
 export nova_ncp_reg="N[0-9]/C[0-9]/P[0-9]+ <-> N[0-9]/C[0-9]/P[0-9]+"
 
+function small_simp {
+    imgcat -W 25px -H 10px -s Downloads/groq-logo.png
+}
+
+function big_simp {
+    imgcat -W 400px -H 150px -s Downloads/groq-logo.png
+}
+
+big_simp
+#small_simp
+
 ##################################
 ############ k8s #################
 ##################################
