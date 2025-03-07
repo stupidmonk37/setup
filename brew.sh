@@ -36,10 +36,12 @@ brew cleanup
 packages=(
     "bash"
     "zsh"
-    "git"
     "tree"
     "watch"
     "midnight-commander"
+    "kube-ps1"
+    "k9s"
+    "danielfoehrkn/switch/switch"
 )
 
 # Loop over the array to install each application.

@@ -1,23 +1,43 @@
-# GROQ
+#################################
+########### GROQ ################
+#################################
 # silence sft if it's not installed
 if ! command -v sft >/dev/null; then
   sft() { :; }
 fi
+
+# groq suggestions
 sft ssh-config >> ~/.ssh/config
 autoload -Uz compinit
 compinit
+
+# regex for something I don't remember right now...
 export nova_ncp_reg="N[0-9]/C[0-9]/P[0-9]+ <-> N[0-9]/C[0-9]/P[0-9]+"
+
+##################################
+############ k8s #################
+##################################
+# context and namespace in prompt
+source /opt/homebrew/opt/kube-ps1/share/kube-ps1.sh
+kubeoff
+
+# easy context switching
+source <(switcher init zsh)
+source <(switcher completion zsh)
+
+# k8s command completion
 source <(kubectl completion zsh)
 
-
-
-
-# HOME
+###################################
+############ HOME #################
+###################################
 # .bin stuff
 PATH="$HOME/.bin:$PATH"
+
 # not sure what i did
 autoload -Uz colors && colors
 setopt PROMPT_SUBST
+
 # make '#' work in interactive shells
 setopt INTERACTIVE_COMMENTS
 
