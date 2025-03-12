@@ -25,6 +25,9 @@ function big_simp {
 big_simp
 #small_simp
 
+# source functions
+source ~/.bin/functions.sh
+
 ##################################
 ############ k8s #################
 ##################################

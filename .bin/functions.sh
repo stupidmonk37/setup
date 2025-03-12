@@ -1,5 +1,40 @@
 #!/usr/bin/env bash
 
+# check geg2 rack power status
+check-rack-power-geg2(){
+    local RACK="$1"
+    [ -z "$RACK" ] && { echo "Please provide rack regex"; return 1; }
+    noglob pdsh -w $RACK-gn[1-9].geg2.groq.com -R ssh sudo ipmitool chassis power status
+}
+
+# check geg3 rack power status
+check-rack-power-geg3(){
+    local RACK="$1"
+    [ -z "$RACK" ] && { echo "Please provide rack regex"; return 1; }
+    noglob pdsh -w $RACK-gn[1-9].geg3.groq.net -R ssh sudo ipmitool chassis power status
+}
+
+# check msp1 rack power status
+check-rack-power-msp1(){
+    local RACK="$1"
+    [ -z "$RACK" ] && { echo "Please provide rack regex"; return 1; }
+    noglob pdsh -w $RACK-gn[1-9].msp1.groq.com -R ssh sudo ipmitool chassis power status
+}
+
+# check msp2 rack power status
+check-rack-power-msp2(){
+    local RACK="$1"
+    [ -z "$RACK" ] && { echo "Please provide rack regex"; return 1; }
+    noglob pdsh -w $RACK-gn[1-9].msp2.groq.net -R ssh sudo ipmitool chassis power status
+}
+
+# check dmm1 rack power status
+check-rack-power-dmm1(){
+    local RACK="$1"
+    [ -z "$RACK" ] && { echo "Please provide rack regex"; return 1; }
+    noglob pdsh -w $RACK-gn[1-9].dmm1.groq.net -R ssh sudo ipmitool chassis power status
+}
+
 # parallel uses single quotes which breaks the shellcheck
 # shellcheck disable=SC2016
 
@@ -158,7 +193,7 @@ k-node-ipmi() {
     ipmitool -H "$fqdn" -U root -P GroqRocks1 power "$ipmi_cmd"
 }
 # Export the function so it can be used in other scripts
-export -f k-node-ipmi
+#export -f k-node-ipmi
 
 # Function to execute IPMI commands on all nodes in specified racks
 # The default action is 'status'
@@ -226,7 +261,7 @@ k-rack-ipmi() {
     esac
 }
 # Export the function so it can be used in other scripts
-export -f k-rack-ipmi
+#export -f k-rack-ipmi
 
 # Get the BIOS version of all nodes
 k-bios-version() {
