@@ -42,6 +42,7 @@ packages=(
     "kube-ps1"
     "k9s"
     "danielfoehrkn/switch/switch"
+    "tmux"
 )
 
 # Loop over the array to install each application.
