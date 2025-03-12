@@ -1,12 +1,17 @@
-source "/opt/homebrew/opt/kube-ps1/share/kube-ps1.sh"
-PS1='$(kube_ps1)'
-KUBE_PS1_PREFIX=''
-KUBE_PS1_SUFFIX=' '
-KUBE_PS1_SYMBOL_ENABLE='false'
-KUBE_PS1_SEPARATOR=''
+#source "/opt/homebrew/opt/kube-ps1/share/kube-ps1.sh"
+#PS1='$(kube_ps1)'
+#KUBE_PS1_PREFIX=''
+#KUBE_PS1_SUFFIX=' '
+#KUBE_PS1_SYMBOL_ENABLE='false'
+#KUBE_PS1_SEPARATOR=''
 
 #original prompt
 #PROMPT='%n@%m %1~ %# '
 
-PROMPT='💩 %(?.%F{green}⏺.%F{red}⏺)%f %2~/ $(kube_ps1)> '
+# work prompt
+#PROMPT='💩 %(?.%F{green}⏺.%F{red}⏺)%f %2~/ $(kube_ps1)> '
+#RPROMPT="%t"
+
+# home prompt
+PROMPT='%(?.%F{green}⏺ .%F{red}⏺ )%f %2~/ > '
 RPROMPT="%t"
