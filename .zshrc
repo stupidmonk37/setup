@@ -24,7 +24,7 @@ big_simp
 #small_simp
 
 # source functions
-source ~/.bin/functions.sh
+#source ~/.bin/functions.sh
 
 ##################################
 ############ k8s #################
@@ -56,6 +56,9 @@ compinit
 
 # not sure what i did
 autoload -Uz colors && colors
+
+# less command like vim
+export LESS='-F -R -M -i -N -j5 -X'
 
 # allow prompt updates ie date/time
 setopt PROMPT_SUBST

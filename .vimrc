@@ -29,7 +29,7 @@ set smartindent
 set autoindent
 
 " Set color scheme.
-colorscheme desert
+colorscheme retrobox
 
 " Show matching parentheses, brackets and braces.
 set showmatch
@@ -62,6 +62,3 @@ set history=1000
 
 " Enable autocompletion for files and commands.
 set completeopt=menu,menuone,noselect
-
-" Enable mouse support.
-set mouse=a
