@@ -27,3 +27,9 @@ alias ll="ls -alhG"
 
 # ls with color
 alias ls="ls -G"
+
+# bat command
+alias bat="bat --theme="TwoDark" --plain "
+
+# bat that prints like cat
+alias batcat="bat --theme="TwoDark" --plain --paging=never "

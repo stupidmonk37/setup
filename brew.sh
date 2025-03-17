@@ -43,6 +43,7 @@ packages=(
     "k9s"
     "danielfoehrkn/switch/switch"
     "tmux"
+    "bat"
 )
 
 # Loop over the array to install each application.
