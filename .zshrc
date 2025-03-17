@@ -2,25 +2,25 @@
 ########### GROQ ################
 #################################
 # silence sft if it's not installed
-#if ! command -v sft >/dev/null; then
-#  sft() { :; }
-#fi
+if ! command -v sft >/dev/null; then
+  sft() { :; }
+fi
 
 # groq suggestions
-#sft ssh-config >> ~/.ssh/config
+sft ssh-config >> ~/.ssh/config
 
 # regex for something I don't remember right now...
-#export nova_ncp_reg="N[0-9]/C[0-9]/P[0-9]+ <-> N[0-9]/C[0-9]/P[0-9]+"
+export nova_ncp_reg="N[0-9]/C[0-9]/P[0-9]+ <-> N[0-9]/C[0-9]/P[0-9]+"
 
 #function small_simp {
-#    imgcat -W 25px -H 10px -s Downloads/groq-logo.png
+#    imgcat -W 25px -H 10px -s ~/Downloads/groq-logo.png
 #}
 
-#function big_simp {
-#    imgcat -W 400px -H 150px -s Downloads/groq-logo.png
-#}
+function big_simp {
+    imgcat -W 400px -H 150px -s ~/Downloads/groq-logo.png
+}
 
-#big_simp
+big_simp
 #small_simp
 
 # source functions
@@ -30,15 +30,19 @@ source ~/.bin/functions.sh
 ############ k8s #################
 ##################################
 # context and namespace in prompt
-#source /opt/homebrew/opt/kube-ps1/share/kube-ps1.sh
-#kubeoff
+source /opt/homebrew/opt/kube-ps1/share/kube-ps1.sh
+kubeoff
+
+# auto complete
+autoload -Uz compinit
+compinit
 
 # easy context switching
-#source <(switcher init zsh)
-#source <(switcher completion zsh)
+source <(switcher init zsh)
+source <(switcher completion zsh)
 
 # k8s command completion
-#source <(kubectl completion zsh)
+source <(kubectl completion zsh)
 
 ###################################
 ############ HOME #################
@@ -47,7 +51,8 @@ source ~/.bin/functions.sh
 PATH="$HOME/.bin:$PATH"
 
 # auto complete
-autoload -Uz compinit && compinit
+autoload -Uz compinit
+compinit
 
 # not sure what i did
 autoload -Uz colors && colors
