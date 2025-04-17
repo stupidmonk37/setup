@@ -23,7 +23,6 @@ function big_simp {
 big_simp
 #small_simp
 
-# source functions
 #source ~/.bin/functions.sh
 
 ##################################
@@ -50,9 +49,15 @@ source <(kubectl completion zsh)
 # .bin stuff
 PATH="$HOME/.bin:$PATH"
 
+# functions for home
+source ~/.bin/home-functions.sh
+
 # auto complete
 autoload -Uz compinit
 compinit
+
+# setup fzf key bindings and fuzzy completion
+source <(fzf --zsh)
 
 # not sure what i did
 autoload -Uz colors && colors
@@ -77,4 +82,20 @@ unset file
 
 # ls in color
 export LSCOLORS="ExGxxxxxCxxxxxxxxxxxxx"
+
+export PATH="/Users/jjensen/.local/bin:$PATH"
+
+export FZF_DEFAULT_OPTS="
+  --height=40%
+  --layout=reverse
+  --border=rounded
+  --color=fg:#dcdccc,bg:#1c1c1c,preview-bg:#1c1c1c,border:#5f5faf,header:#af87d7
+  --prompt='❯ '
+  --marker='✓ '
+  --pointer='▶'
+  --info=inline
+  --preview 'bat --style=numbers --color=always --line-range :500 {}'
+  "
+#export FZF_DEFAULT_OPTS="$FZF_DEFAULT_OPTS --preview 'bat --style=numbers --color=always --line-range :500 {}'"
+
 

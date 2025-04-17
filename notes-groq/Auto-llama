@@ -1,0 +1,14 @@
+#auto-llama location
+demo@c3r11-controller1:/nfs/geg2/c2r9-data1/validation/auto-llama
+
+#activate engine
+conda activate engine
+
+#run auto-llama on single rack
+./auto-llama.py --racks c12r16 -v
+
+#rack sweep ie run bad rack against a known good rack
+./auto-llama.py --racks $GOOD $BAD -v
+
+#view auto-llama run process
+sudo journalctl -fu auto-llama@$RACK

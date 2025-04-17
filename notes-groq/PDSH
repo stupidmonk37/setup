@@ -1,0 +1,1 @@
+pdsh -w c0r23-gn[1-9].msp1.groq.net -R ssh "uptime" 2> /dev/null

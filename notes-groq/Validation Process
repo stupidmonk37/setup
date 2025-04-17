@@ -1,0 +1,11 @@
+#single chip tester
+/nfs/geg2/c2r9-data1/okilani/test/single-chip-determinism-tester --devices-under-test 0 1 2 3 4 5 6 7 --iterations 100
+/nfs/msp1/data1/test/single-chip-determinism --devices-under-test 0 1 2 3 4 5 6 7 --iterations 100 --return-failed-devices
+
+#PRBS
+mpirun -np 9 --hostfile /usr/local/groq/config/hosts_file --pernode --tag-output groq-python /nfs/geg2/c2r9-data1/ps_bringup_python/runtime/tspctl.py c2c test --topo_str RT09_A14_72_CHIP_PS --verbose -to 30
+mpirun -np 9 --hostfile /usr/local/groq/config/hosts_file --pernode --tag-output groq-python /nfs/geg2/c2r9-data1/ps_bringup_python/runtime/tspctl.py c2c test --topo_str RT09_A14_72_CHIP --verbose -to 30
+
+
+#all link test
+mpirun -np 9 --hostfile /usr/local/groq/config/hosts_file --pernode --tag-output groq-python /nfs/geg2/c2r9-data1/ps_bringup_python/runtime/multichip_runner.py --pkg_dir /nfs/geg2/c2r9-data1/datapath-tests/ps/nofec/RT09_A14_72_CHIP_PS_NOFEC/ --bringup --debug --iter 3000

@@ -1,0 +1,11 @@
+#check nic pcie width
+demo@c2r7-gn2:~$ sudo lspci -s 21: -vvv | grep -Ei "lnksta|mell"
+21:00.0 Ethernet controller: Mellanox Technologies MT28908 Family [ConnectX-6]
+	Subsystem: Mellanox Technologies MT28908 Family [ConnectX-6]
+		LnkSta:	Speed 16GT/s (ok), Width x16 (ok)
+		LnkSta2: Current De-emphasis Level: -6dB, EqualizationComplete+ EqualizationPhase1+
+21:00.1 Ethernet controller: Mellanox Technologies MT28908 Family [ConnectX-6]
+	Subsystem: Mellanox Technologies MT28908 Family [ConnectX-6]
+		LnkSta:	Speed 16GT/s (ok), Width x16 (ok)
+		LnkSta2: Current De-emphasis Level: -6dB, EqualizationComplete- EqualizationPhase1-
+demo@c2r7-gn2:~$

@@ -1,0 +1,2 @@
+#get dhcp leases
+curl -o leases.txt http://10.10.253.15/dhcpd.leases

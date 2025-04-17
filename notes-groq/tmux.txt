@@ -1,0 +1,37 @@
+# create new session
+tmux new -s <NAME>
+
+# list tmux sessions
+tmux ls
+
+# resume tmux session
+tmux attach -t <SESSION>
+
+# kill session from list
+tmux kill-session -t <SESSION>
+
+# create new window in session
+ctrl+a, c
+
+# next/previous window in session
+ctrl+a, n
+ctrl+a, p
+
+# spread panes out evenly
+ctrl+a, E
+
+# detach from curren session
+ctrl+a, d
+
+# move window left
+ctrl+a, <
+
+# move window right
+ctrl+a, >
+
+# rename window
+ctrl+a, r
+
+# reload config
+ctrl+a, R
+

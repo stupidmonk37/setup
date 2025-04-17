@@ -1,0 +1,33 @@
+#notion doc
+https://www.notion.so/groq/GroqCard-Overview-13ca08e6e8a780d68815c0798e13c0be?pvs=4
+https://www.notion.so/groq/DCOps-GroqNode-Tools-and-Diagnostics-143a08e6e8a780d5bf7cfbde7a5604fe?pvs=4
+
+#reset all groq cards
+for CARD in {0..7}; do tsp-ctl --device=/dev/groqA${CARD}.pci reset -c -f  > /dev/null ; done
+
+#qsfp status
+tsp-ctl qsfp summary | awk 'NR<3{print $0;next}{print $0| "sort"}'
+
+#upgrade fw
+tsp-ctl update-fw --bundle /opt/groq/firmware/GroqCard1_FirmwareBundle.bin --all-devices
+
+#port decoder
+/nfs/geg2/c2r9-data1/tools/find_connection.py
+
+Usage: find_connection.py [nchips] [start_node] [chip_1] [chip_2]
+Example: find_connection.py 72c gn1 9 14
+
+#list port status
+sudo lspci -vvvs 21: | grep LnkSta:
+
+#check for missing optics
+pdsh -N -w c8r11-gn[1-9] -R ssh check-missing-optics.sh | jq 'select(.ok == false)' -c
+
+#check for locked cards
+pdsh -N -w c8r4-gn[1-9] -R ssh check-locked-cards.sh | jq 'select(.ok == false)' -c
+
+#check firmware version
+pdsh -N -w c8r4-gn[1-9] -R ssh check-firmware-version.sh | jq 'select(.ok == false)' -c
+
+#check ipmi sensors
+pdsh -N -w c8r4-gn[1-9] -R ssh check-ipmi-sensors.sh | jq 'select(.ok == false)' -c

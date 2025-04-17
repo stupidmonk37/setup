@@ -1,0 +1,16 @@
+Here are the instructions for setting up the new PDUs.
+
+1) Log in via SSH
+     ssh admin@<ip_address>
+     password= 12345678
+2) Change PW:
+     The PDU will require a new PW to be set upon first login, set it to:
+     GroqRocks!
+3) Create a new user (enter the following command):
+     usr options non-interactive add apc 12345678 12345678 admin
+4) Log out (enter the following command):
+     exit
+5) Log back in as the new user via SSH:
+     ssh apc@<ip_address>
+     password= 12345678
+6) Change P

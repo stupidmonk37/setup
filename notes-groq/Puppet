@@ -1,0 +1,23 @@
+#puppetboard search
+inventory[
+certname,
+facts.virtual,
+facts.ipaddress,
+facts.ipmi_ipaddress,
+facts.ipmi_macaddress,
+facts.rack,
+facts.nodetype, facts.nodenumber
+]{ facts.rack = "$RACK"}
+
+#remove node from puppet
+#on conman
+FQDN=c14r5-gn2.geg3.groq.net
+curl http://puppet.infra.psw.groq.internal:9000/hooks/puppet-clean-cert?node="${FQDN}"
+pxe_remove_server_from_asa.py -n $FQDN --delete
+#on node
+rm -rf /etc/puppetlabs/puppet/ssl/
+#start puppet on node
+sudo FACTER_sftd_server_enrolled=present  /opt/puppetlabs/bin/puppet agent --test
+
+#remove duplicates from ssh
+pxe_remove_server_from_asa.py --uuid 6c3e4352-4d60-4efa-b9de-671d6bdff596 --delete

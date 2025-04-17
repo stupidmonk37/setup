@@ -1,0 +1,12 @@
+# on a controller go to /tmp
+cd /tmp/sum_2.14.0_Linux_x86_64
+
+# create a file named anything and put the node bmc FQDN in ie
+vi bios
+c9r11-gn1-bmc.geg2.groq.com
+c9r11-gn2-bmc.geg2.groq.com
+c9r11-gn3-bmc.geg2.groq.com
+c9r11-gn4-bmc.geg2.groq.com
+
+# run this command
+sudo ./sum -l $FILE_NAME -u root -p GroqRocks1 --file /tmp/BIOS_H12DSGO-1B55-GI00280U00_20240731_2.8.v2_OEMsp.bin -c UpdateBios --reboot --preserve_setting

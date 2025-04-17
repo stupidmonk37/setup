@@ -1,0 +1,27 @@
+#notion doc for power commands
+https://www.notion.so/groq/Power-Cycle-Processes-126a08e6e8a78152b030d8409b7fefd8?pvs=4
+
+#rack power status
+RACK=<RACK> ; for NODE in {1..9} ; do echo ${RACK}-gn${NODE}: ; sudo ipmitool -H ${RACK}-gn${NODE}-bmc.geg2.groq.com -U root -P GroqRocks1 power status ; done
+
+#rack power cycle
+RACK=<RACK> ; pdsh -w $RACK-gn[1-9].geg2.groq.com -R ssh sudo ipmitool power cycle
+
+#get ip for entire rack
+RACK=<RACK> ; for NODE in {1..9} ; do IP="$(dig +short ${RACK}-gn${NODE}-bmc.geg2.groq.com)" ; echo ${RACK}-gn${NODE}: ; echo $IP ; done
+
+#power cycle node
+ipmipower -h c14r15-gn1-bmc.geg3.groq.net --cycle
+sudo ipmitool chassis power
+
+##################
+#DO THIS ONE!
+pdsh -w $RACK-gn[1-9].geg2.groq.com -R ssh sudo ipmitool chassis power cycle
+####################
+
+#fix missing pci slot
+fix-missing-pcie-slot.sh 1
+fix-missing-pcie-slot.sh 8
+
+#check BMC status
+(racks="$(echo c4r{1..11})"; suffices="$(echo gn{1..9}-bmc)"; export domain=geg2.groq.com tmp="$XDG_RUNTIME_DIR/c4check"; mkdir -p "$tmp"; parallel -j1000 'for i in {1..5}; do if timeout 2 ping -c 1 {}".$domain" >& /dev/null; then echo ok; break; fi; done > "$tmp"/{}' ::: $(for r in $racks; do for s in $suffices; do echo "$r-$s"; done; done); for s in $suffices; do printf '\t%s' "$s"; done; echo; for r in $racks; do printf '%s' "$r"; for s in $suffices; do if [ -s "$tmp/$r-$s" ]; then printf '\t==UP=='; else printf '\t.'; fi; done; echo; done)

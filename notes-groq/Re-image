@@ -1,0 +1,27 @@
+#step 1
+RACK=c14r11
+
+#step 2
+vi ${RACK}-bmc-mac.csv (paste in comma separated data from spreadsheet (7C:C2:55:77:72:47, ADMIN, BCRXIFVYWT), then save)
+
+#step 3
+cat ${RACK}-bmc-mac.csv
+
+#step 4
+initiate_unknown_nodes_via_csv.py -f ${RACK}-bmc-mac.csv
+
+#If the nodes have network attached to the BMC and have pulled IPs, it will reply with something like this:
+file = c5r11_bmc_macs.csv
+OK: macaddress 7c:c2:55:77:76:30 has an ip, 10.10.36.235
+
+#step 5
+./2-find-ip-from-mac.sh $RACK
+
+#step 6
+vi $RACK-hostname.txt - paste in the unassigned puppet name and add the domain to the end
+
+#step 7
+./3-final-image.sh
+
+#verify node c2c
+time /nfs/geg2/c2r9-data1/validation/verifyNodeC2C.sh

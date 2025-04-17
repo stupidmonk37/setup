@@ -44,6 +44,7 @@ packages=(
     "danielfoehrkn/switch/switch"
     "tmux"
     "bat"
+    "fzf"
 )
 
 # Loop over the array to install each application.

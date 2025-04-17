@@ -1,0 +1,28 @@
+$RACK = c0r23
+
+#Get BMC IP (conman)
+0 - From /home/jjensen/provision/msp on conman...
+1 - Create new .txt file containing bmc macs for new nodes - vi $RACK-bmc-mac.txt
+2 - Pull current dhcp leases - ./1-pull-dhcp-leases.sh
+3 - Search leases.txt for corosponding ips - ./2-find-ip-from-mac.sh $RACK
+4 - Update the TODO google sheet with the bmc IPs
+
+#Setup BMC (conman)
+5 - Create new .txt containing username ($1) and password ($2) - vi $RACK-user-pass.txt
+6 - Combine $RACK-bmc-mac-ip.txt and $RACK-user-pass.txt - paste $RACK-bmc-mac-ip.txt $RACK-user-pass.txt > $RACK.txt
+7 - Setup BIOS - ./3-setup-bios.sh $RACK
+8 - Set boot to BIOS - ./4-boot-to-bios.sh $RACK
+9 - Power on server and enter BIOS - ./5-boot-server.sh $RACK
+10 - Change BMC root password - ./6-change-bmc-pw.sh $RACK
+10 - Update google sheet w/ 100GB NIC MACs
+
+#Setup node. (conman)
+11 - Move files to node - ./7-scp-files-to-rack.sh $RACK
+
+#Verify rack (gn1)
+12 - Run rack verification - time /nfs/geg2/c2r9-data1/validation/verifyNodeC2C_TP.sh $RACK
+    12.1 - If whole rack verification fails, run the following on failed rack - time /nfs/geg2/c2r9-data1/validation/verifyNodeC2C.sh
+13 - Run 3 minute PRBS test - /opt/demo/3min-prbs.sh
+14 - Run 30 minute PRBS test - /opt/demo/30min-prbs.sh
+15 - Setup auto-llama
+    15.1 - cp /nfs/msp1/data1/code/aweinstein/llama-engine /opt/demo/auto-llama

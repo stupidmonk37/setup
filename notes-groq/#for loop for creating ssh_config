@@ -1,0 +1,40 @@
+#for loop for creating ssh_config
+#TP cell 2-9 (geg2.groq.com)
+
+
+file="geg2.txt"
+
+for ((i=1; i<=11; i++)); do
+  for ((j=2; j<=9; j++)); do
+    rack="c${j}r${i}"
+    domain="geg2.groq.com"
+    for k in controller1 storage1 gn{1..9}; do
+      echo "Host ${rack}-${k}" >> $file
+      echo "  Hostname ${rack}-${k}.${domain}" >> $file
+    done
+  done
+done
+
+for ((i=1; i<=11; i++)); do
+  for ((j=2; j<=9; j++)); do
+file="geg2.txt"
+rack="c{2..9}r{1..11}"
+domain="geg2.groq.com"
+for k in controller1 storage1 gn{1..9}; do
+  echo "Host ${rack}-${k}" >> $file
+  echo "  Hostname ${rack}-${k}.${domain}" >> $file
+done
+
+
+
+
+
+
+# To use ScaleFT proxycommand, add this configuration block to your $HOME/.ssh/config
+Match exec "/usr/local/bin/sft resolve -q  %h"
+    ProxyCommand "/usr/local/bin/sft" proxycommand  %h
+    UserKnownHostsFile "/Users/jjensen/Library/Application Support/ScaleFT/proxycommand_known_hosts"
+
+Host jjensen
+  HostName jjensen
+  ForwardAgent yes

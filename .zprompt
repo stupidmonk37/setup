@@ -5,11 +5,11 @@ KUBE_PS1_SUFFIX=' '
 KUBE_PS1_SYMBOL_ENABLE='false'
 KUBE_PS1_SEPARATOR=''
 
-#original prompt
+# original prompt
 #PROMPT='%n@%m %1~ %# '
 
 # work prompt
-PROMPT='💩 %(?.%F{green}⏺.%F{red}⏺)%f %2~/ $(kube_ps1)> '
+PROMPT='%(?.%F{green}⏺.%F{red}⏺)%f %2~/ $(kube_ps1)> '
 RPROMPT="%t"
 
 # home prompt

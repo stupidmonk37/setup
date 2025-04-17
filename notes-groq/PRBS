@@ -1,0 +1,24 @@
+#PRBS test error meanings
+'[1,1]<stdout>: [-] PRBS Status issue detected on link ('/dev/groqA3.pci', 5): Status [3, 3, 3, 3]'
+
+[#,#,#,#] - this shows each of the lanes
+"0" = no signal
+"1" = connection is good
+"3" = error
+
+[3, 3, 3, 3] - Almost never means bad cable
+[1, 3, 1, 1] - Likely a dirty cable
+[0, 0, 0, 0] - No connection
+
+# 30 minute PRBS test at TP3
+mpirun --tag-output -np 9 --hostfile /usr/local/groq/config/hosts_file --pernode tsp-ctl c2c test --topo_str RT09_A14_72_CHIP -to 1800 | tee testrun_1800_1.log
+TN=testrun-1800.log && RACK=$(hostname | awk -F '-' '{print $1}') && time pdsh -w ${RACK}-gn[1-9].geg3.groq.net -R ssh "tsp-ctl c2c test --topo_str RT09_A14_72_CHIP -to 1800" | grep -v INFO | tee -a ${TN}; echo Nodes run: $(grep iterations ${TN} | wc -l)
+
+# 3 minute PRBS test at TP3
+mpirun --tag-output -np 9 --hostfile /usr/local/groq/config/hosts_file --pernode tsp-ctl c2c test --topo_str RT09_A14_72_CHIP -to 100 | tee testrun_100_1.log
+TN=testrun-180.log && RACK=$(hostname | awk -F '-' '{print $1}') && time pdsh -w ${RACK}-gn[1-9].geg3.groq.net -R ssh "tsp-ctl c2c test --topo_str RT09_A14_72_CHIP -to 180" | grep -v INFO | tee -a ${TN}; echo Nodes run: $(grep iterations ${TN} | wc -l)
+
+jshriver@c12r16-gn8:~$ more /nfs/geg2/c3r3-data1-logs/dumps/c12r16.08232024.19h17m/c12r16.08232024.19h17m.prbs | grep "\[0" | sort
+
+#prop-sync racks use this topology
+mpirun -np 9 --hostfile /usr/local/groq/config/hosts_file --pernode --tag-output groq-python /nfs/geg2/c2r9-data1/ps_bringup_python/runtime/tspctl.py c2c test --topo_str RT09_A14_72_CHIP_PS --verbose -to 30

@@ -29,7 +29,7 @@ alias ll="ls -alhG"
 alias ls="ls -G"
 
 # bat command
-alias bat="bat --theme="TwoDark" --plain "
+alias bat="bat --theme="gruvbox-dark" --plain "
 
 # bat that prints like cat
-alias batcat="bat --theme="TwoDark" --plain --paging=never "
+alias batcat="bat --theme="gruvbox-dark" --plain --paging=never "

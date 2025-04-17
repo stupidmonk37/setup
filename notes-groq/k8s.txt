@@ -1,0 +1,142 @@
+########### BMC ############
+# get bmc info dmm
+curl http://10.158.131.5/api/v1/dhcp/leases |   jq -r '.active[] | [.hostname, .ip, .mac, .created, .expires_at, .renewed, .status] | @tsv'| sort | grep $RACK
+
+# get bmc info msp2
+curl http://anodizer-api.msp2.groq.net/api/v1/dhcp/leases |   jq -r '.active[] | [.hostname, .ip, .mac, .created, .expires_at, .renewed, .status] | @tsv'| sort | grep $RACK
+
+# power cycle anything in DMM
+for i in `curl http://10.158.131.5/api/v1/dhcp/leases |   jq -r '.active[] | [.hostname, .ip, .mac, .created, .expires_at, .renewed, .status] | @tsv'| sort | grep $DEVICE | grep bmc | awk '{print$2}'`; do ipmitool -H $i -U root -P GroqRocks1 power cycle ; done
+
+# checck power status
+ipmitool -H <node> -U root -P GroqRocks1 power status
+
+
+
+
+########## PODS ###########
+# get pods for rack
+kubectl get pods -n groq-system | grep $RACK
+
+# restart tspd for entire rack
+kubectl delete -n groq-system $(echo {1..9} | xargs -n1 | parallel -j9 kubectl get pod -n groq-system -l app=tspd --field-selector spec.nodeName=$RACK-gn{} --no-headers -o name)
+
+# restart tspd for single rack
+kubectl delete pod -n groq-system -l app=tspd --field-selector spec.nodeName=c0r67-gnX
+
+# force delete stuck pod
+kubectl -n groq-system delete pod --force $POD
+
+
+
+
+
+######### INFO ############
+# current state of rack
+kubectl get nodes -n groq-system| grep $RACK
+
+# kubectl racks
+kubectl racks | grep $RACK
+
+# single rack metadata
+kubectl racks -o json | jq '.items[] | select(.metadata.name=="c1r25")'
+
+
+
+
+
+
+######### MAINTENANCE ##########
+# uncordon rack
+for i in {1..9} ; do kubectl uncordon $RACK-gn$i ; done
+
+
+
+
+
+######## LOGS ################
+# view logs
+kubectl logs -n groq-system $POD | jq
+
+# view conductor logs
+kubectl logs -c conductor -n groq-system $POD
+
+kubectl logs -c conductor $POD | egrep "$nova_ncp_reg" -o | sort -uV
+
+
+
+
+
+
+######## CONTEXT #########
+# change context
+kubectl config use-context dmm1-prod1.tail15648.ts.net
+
+# add new context for tailscale
+tailscale configure kubeconfig msp2-prod1
+
+# single rack metadata
+kubectl racks -o json | jq '.items[] | select(.metadata.name=="c1r25")'
+
+
+
+
+
+
+
+
+######### NODE ADMIN ###########
+infrastructure-platform-clusters/scripts/node-admin.sh $NODE $IMAGE
+
+# job templates
+/infrastructure-platform-clusters/scripts/hw_validation/templates
+
+# images
+IP_REPO="us-west1-docker.pkg.dev/prj-c-cloud-dcinfra-bc27/infrastructure-platform"
+tspCtlImage="us-west1-docker.pkg.dev/prj-c-cloud-dcinfra-bc27/infrastructure-platform/tsp-ctl:20250207191012.0.0-g13e712ed1fda-ciJob-6638359"
+runtimeTestsImage="us-west1-docker.pkg.dev/prj-c-cloud-dcinfra-bc27/infrastructure-platform/runtime-tests:20250207191037.0.0-g13e712ed1fda-ciJob-6638360"
+llamaEngineImage="us-west1-docker.pkg.dev/prj-c-cloud-dcinfra-bc27/infrastructure-platform/nova-engine:20250207191001.0.0-g13e712ed1fda-ciJob-6638357"
+neutrinoImage="us-docker.pkg.dev/prj-c-cloud-cicd-8fbb/neutrino/neutrino:v1.29.3"
+groqSweepImage="us-west1-docker.pkg.dev/prj-c-cloud-dcinfra-bc27/infrastructure-platform/groq-sweep:latest"
+netshootImage="nicolaka/netshoot:latest"
+
+
+# upgrade card fw
+run kc get node -l groq.fw-bundle-lowest=0.0.10
+run ~/git/infrastructure-platform-clusters/scripts/fw-update-yaml-gen.sh 0.0.10
+run kc apply -f fw-update/
+
+
+use stern fw-update to follow the logs. or kc logs -f <pod> if you prefer
+don't forget to kc delete -f fw-update/ when you're done
+it will automatically reboot the node after the upgrade, but do follow the log so you see what is going on
+
+
+
+
+# New command i need to figure out
+❯ kc list info-rack c1r101
+{
+  "kind": "Rack",
+  "apiVersion": "v1",
+  "metadata": {
+    "name": "c1r101",
+    "creationTimestamp": null
+  },
+  "allocated": false,
+  "validated": false,
+  "status": "Repair",
+  "rackValidatedAt": "2025-03-19T17:37:00Z",
+  "totalNodes": 9,
+  "readyNodes": 9,
+  "notReadyNodes": 0,
+  "cordonedNodes": 0,
+  "repairNodes": 9,
+  "outOfServiceNodes": 0,
+  "topologyFamily": "xt",
+  "topologyWiring": "xt4444",
+  "next": "c1r102",
+  "prev": "c1r100",
+  "powerPod": "3"
+}
+
