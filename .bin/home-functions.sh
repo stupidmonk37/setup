@@ -28,13 +28,13 @@ tks () {
 
 fvfind() {
   local file
-  file=$(fzf-tmux -p 80%,60% --preview 'bat --theme="TwoDark" --plain --color=always {}' --preview-window=right:70%)
+  file=$(fzf-tmux -p 80%,60% --preview 'bat --theme="gruvbox" --plain --color=always {}' --preview-window=right:70%)
   [ -n "$file" ] && vim "$file"
 }
 
 fbfind() {
   local file
-  file=$(fzf-tmux -p 80%,60% --preview 'bat --theme="TwoDark" --plain --color=always {}' --preview-window=right:70%)
+  file=$(fzf-tmux -p 80%,60% --preview 'bat --theme="gruvbox-dark" --plain --color=always {}' --preview-window=right:70%)
   [ -n "$file" ] && bat "$file"
 }
 
@@ -52,6 +52,6 @@ fh() {
 }
 
 fnotes() {
-  bat --theme="TwoDark" --plain "$(find ~/git/setup/notes-groq -type f 2> /dev/null | fzf-tmux -p 70%,50% --preview 'bat --theme="TwoDark" --plain --color=always --style=numbers {}' --preview-window=right:70%)"
+  bat --theme="gruvbox-dark" --plain "$(find ~/git/setup/notes-groq -type f 2> /dev/null | fzf-tmux -p 70%,50% --preview 'bat --theme="gruvbox" --plain --color=always --style=numbers {}' --preview-window=right:70%)"
 }
 
