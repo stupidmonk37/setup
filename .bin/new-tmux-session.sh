@@ -6,6 +6,6 @@
 LIST=$@
 
 for i in $LIST; do 
-    tmux new-session -d -s "$i"
+    tmux new-session -d -s "$i" -n "$i"
     echo "✅ Created session: $i"
 done

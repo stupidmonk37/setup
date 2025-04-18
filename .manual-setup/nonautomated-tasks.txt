@@ -1,0 +1,29 @@
+###################
+##### mac OSX #####
+###################
+
+# setup touchID
+# set theme to dark mode
+# change key repeat to fast
+# change key delay to none
+# move dock to right side & hidden
+# create appleID
+# download "Amphetamine" from appstore
+
+
+
+##########################
+##### terminal setup #####
+##########################
+
+# mkdir /User/justin/git
+# git clone https://github.com/stupidmonk37/setup.git 
+# make sure dotfiles look the way you want
+# ~/git/setup/install.sh
+# upload iterm config
+    iterm2 > settings > general > settings
+    click "Import All Settings and Data..."
+    Browse to /User/justin/git/setup/.manual-setup/iTerm2\ State.itermexport
+
+
+
