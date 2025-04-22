@@ -87,6 +87,6 @@ fh() {
 }
 
 fnotes() {
-  bat --theme="gruvbox-dark" --plain "$(find ~/git/setup/notes-groq -type f 2> /dev/null | fzf-tmux -p 70%,50% --preview 'bat --theme="gruvbox" --plain --color=always --style=numbers {}' --preview-window=right:70%)"
+  bat --theme="gruvbox-dark" --plain "$(find ~/git/setup/groq/notes-groq -type f 2> /dev/null | fzf-tmux -p 70%,50% --preview 'bat --theme="gruvbox-dark" --plain --color=always --style=numbers {}' --preview-window=right:70%)"
 }
 
