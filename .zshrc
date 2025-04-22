@@ -13,11 +13,11 @@ sft ssh-config >> ~/.ssh/config
 export nova_ncp_reg="N[0-9]/C[0-9]/P[0-9]+ <-> N[0-9]/C[0-9]/P[0-9]+"
 
 #function small_simp {
-#    imgcat -W 25px -H 10px -s ~/Downloads/groq-logo.png
+#    imgcat -W 25px -H 10px -s ~/git/setup/groq/groq-logo.png
 #}
 
 function big_simp {
-    imgcat -W 400px -H 150px -s ~/Downloads/groq-logo.png
+    imgcat -W 400px -H 150px -s ~/git/setup/groq/groq-logo.png
 }
 
 big_simp
