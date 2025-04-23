@@ -16,9 +16,8 @@
 ##### terminal setup #####
 ##########################
 
-# mkdir /User/justin/git
-# git clone https://github.com/stupidmonk37/setup.git 
-# make sure dotfiles look the way you want
+# mkdir $HOME/git
+# git clone https://github.com/stupidmonk37/setup.git $HOME/git 
 # ~/git/setup/install.sh
 # upload iterm config
     iterm2 > settings > general > settings

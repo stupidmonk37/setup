@@ -1,101 +1,77 @@
-#################################
-########### GROQ ################
-#################################
-# silence sft if it's not installed
-if ! command -v sft >/dev/null; then
-  sft() { :; }
-fi
+# Set your environment
+# work_env=true(work setup) or work_env=false(home setup)
+work_env=true
+job=groq
+base=(.aliases .tmux.conf .vimrc .zprofile)
+work=(.aliases-$job .zprompt-$job .zshrc-$job)
+work_dotfile="$HOME/git/setup/$job"
 
-# groq suggestions
-sft ssh-config >> ~/.ssh/config
+load_base_env() {
+    # .bin stuff
+    export PATH="$HOME/.bin:$HOME/.local/bin:$PATH"
 
-# regex for something I don't remember right now...
-export nova_ncp_reg="N[0-9]/C[0-9]/P[0-9]+ <-> N[0-9]/C[0-9]/P[0-9]+"
+    # Colorful grep
+    export GREP_COLORS='1;35;40'
 
-#function small_simp {
-#    imgcat -W 25px -H 10px -s ~/git/setup/groq/groq-logo.png
-#}
+    # less command like vim
+    export LESS='-F -R -M -i -N -j5 -X'
 
-function big_simp {
-    imgcat -W 400px -H 150px -s ~/git/setup/groq/groq-logo.png
+    # ls command colors
+    export LSCOLORS="ExGxxxxxCxxxxxxxxxxxxx"
+
+    export FZF_DEFAULT_OPTS="
+    --height=40%
+    --layout=reverse
+    --border=rounded
+    --color=fg:#dcdccc,bg:#1c1c1c,preview-bg:#1c1c1c,border:#5f5faf,header:#af87d7
+    --prompt='❯ '
+    --marker='✓ '
+    --pointer='▶'
+    --info=inline
+    --preview 'bat --style=plain --color=always --line-range :500 {}'
+    "
+
+    # functions for home
+    [[ -f "$HOME/.bin/home-functions.sh" ]] && source "$HOME/.bin/home-functions.sh"
+
+    # auto complete
+    autoload -Uz compinit
+    compinit
+
+    # not sure what i did
+    autoload -Uz colors && colors
+
+    # setup fzf key bindings and fuzzy completion
+    source <(fzf --zsh)
+
+    # allow prompt updates ie date/time
+    setopt PROMPT_SUBST
+
+    # make '#' work in interactive shells
+    setopt INTERACTIVE_COMMENTS
+
+    # Load dotfiles:
+    for file in "${base[@]}"; do
+        [ -r "$file" ] && [ -f "$file" ] && source "$file" 2>/dev/null
+    done
+    unset file
 }
 
-big_simp
-#small_simp
+# Load dotfiles based on environment
+if [[ $work_env == "true" ]]; then
+    for file in "${work[@]}"; do
+        [[ -f "$work_dotfile/$file" ]] && source "$work_dotfile/$file"
+    done
 
-#source ~/.bin/functions.sh
+    load_base_env
 
-##################################
-############ k8s #################
-##################################
-# context and namespace in prompt
-source /opt/homebrew/opt/kube-ps1/share/kube-ps1.sh
-kubeoff
+elif [[ $work_env == "false" ]]; then
+    [[ -f "$HOME/.zprompt" ]] && source "$HOME/.zprompt"
+    load_base_env
 
-# auto complete
-autoload -Uz compinit
-compinit
+else
+    echo "Unknown value for work_env: '$work_env' — must be 'true' or 'false'"
+fi
 
-# easy context switching
-source <(switcher init zsh)
-source <(switcher completion zsh)
-
-# k8s command completion
-source <(kubectl completion zsh)
-
-###################################
-############ HOME #################
-###################################
-# .bin stuff
-PATH="$HOME/.bin:$PATH"
-
-# functions for home
-source ~/.bin/home-functions.sh
-
-# auto complete
-autoload -Uz compinit
-compinit
-
-# setup fzf key bindings and fuzzy completion
-source <(fzf --zsh)
-
-# not sure what i did
-autoload -Uz colors && colors
-
-# less command like vim
-export LESS='-F -R -M -i -N -j5 -X'
-
-# allow prompt updates ie date/time
-setopt PROMPT_SUBST
-
-# make '#' work in interactive shells
-setopt INTERACTIVE_COMMENTS
-
-# Colorful grep
-export GREP_COLOR='1;35;40'
-
-# Load dotfiles:
-for file in ~/.{zprompt,aliases,private}; do
-    [ -r "$file" ] && [ -f "$file" ] && source "$file"
-done
-unset file
-
-# ls in color
-export LSCOLORS="ExGxxxxxCxxxxxxxxxxxxx"
-
-export PATH="/Users/jjensen/.local/bin:$PATH"
-
-export FZF_DEFAULT_OPTS="
-  --height=40%
-  --layout=reverse
-  --border=rounded
-  --color=fg:#dcdccc,bg:#1c1c1c,preview-bg:#1c1c1c,border:#5f5faf,header:#af87d7
-  --prompt='❯ '
-  --marker='✓ '
-  --pointer='▶'
-  --info=inline
-  --preview 'bat --style=numbers --color=always --line-range :500 {}'
-  "
-#export FZF_DEFAULT_OPTS="$FZF_DEFAULT_OPTS --preview 'bat --style=numbers --color=always --line-range :500 {}'"
-
+echo "Loaded $job environment ($([[ $work_env == true ]] && echo work || echo home))"
 

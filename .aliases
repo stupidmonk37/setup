@@ -1,22 +1,7 @@
-############################
-########## GROQ ############
-############################
-alias conman="sft ssh conman.c.groq-psw-infra.internal"
-alias kracks="kubectl racks"
-alias kc="kubectl"
-alias k8s="cd /Users/jjensen/git/infrastructure-platform-clusters/scripts/hw_validation"
-alias kpods="kubectl get pods -o wide | grep "
-alias knodes="kubectl get nodes -o wide | grep "
-alias klogs="kubectl logs "
-alias kjobs="kubectl get jobs | grep "
-alias klogs-conductor="kubectl logs -c conductor "
-alias dmm1_ip="curl http://anodizer-api.dmm1.groq.net/api/v1/dhcp/leases | jq -r '.active[] | [.hostname, .ip, .mac, .created, .expires_at, .renewed, .status] | @tsv'| sort | grep "
-alias msp2_ip="curl http://anodizer-api.msp2.groq.net/api/v1/dhcp/leases | jq -r '.active[] | [.hostname, .ip, .mac, .created, .expires_at, .renewed, .status] | @tsv'| sort | grep "
-alias geg2_ip="curl http://anodizer-api.geg2.groq.net/api/v1/dhcp/leases | jq -r '.active[] | [.hostname, .ip, .mac, .created, .expires_at, .renewed, .status] | @tsv'| sort | grep " 
+################
+##### HOME #####
+################
 
-###############################
-############ HOME #############
-##############################
 # grep with color
 alias grep="grep --color=auto"
 alias egrep="grep --color=auto"
@@ -29,7 +14,7 @@ alias ll="ls -alhG"
 alias ls="ls -G"
 
 # bat command
-alias bat="bat --theme="gruvbox-dark" --plain "
+alias bat='bat --plain --theme="gruvbox-dark" --color=always --paging=always'
 
 # bat that prints like cat
-alias batcat="bat --theme="gruvbox-dark" --plain --paging=never "
+alias batcat='bat --theme="gruvbox-dark" --style=plain --paging=never '
