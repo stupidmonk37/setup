@@ -1,33 +1,35 @@
 #!/usr/bin/env zsh
 ############################
-# This script creates symlinks from the home directory to any desired dotfiles in $HOME/dotfiles
-# And also installs MacOS Software
-# And also installs Homebrew Packages and Casks (Apps)
-# And also sets up VS Code
-# And also sets up Sublime Text
+# This script:
+# - Symlinks dotfiles from ~/git/setup to ~/
+# - Installs the gruvbox color scheme for vim/bat
+# - Optionally runs macOS and Homebrew setup scripts
 ############################
 
 # dotfiles directory
 dotfiledir="${HOME}/git/setup"
 
-# list of files/folders to symlink in ${homedir}
-files=(vim vimrc zshrc zprofile zprompt aliases bin tmux.conf)
+# list of files/folders to symlink
+files=(.vim .vimrc .zshrc .zprofile .zprompt .aliases .bin .tmux.conf)
 
-# create symlinks (will overwrite old dotfiles)
+# create symlinks
+echo "🔗 Symlinking dotfiles from $dotfiledir into ~/"
 for file in "${files[@]}"; do
-    echo "Creating symlink to $file in home directory."
-    ln -sf "${dotfiledir}/.${file}" "${HOME}/.${file}"
+    echo "  ↪ ${file}"
+    ln -sf "${dotfiledir}/${file}" "${HOME}/${file}" && echo "    ✅ Linked ~/${file}"
 done
 
-# Not sure where to put this yet, so it's going here
-# It's the vim/bat colorscheme
-curl -fLo "${dotfiledir}.vim/colors/gruvbox.vim" --create-dirs https://raw.githubusercontent.com/morhetz/gruvbox/master/colors/gruvbox.vim
+# install the gruvbox colorscheme for Vim/Bat
+echo "🎨 Installing gruvbox color scheme..."
+curl -fLo "${dotfiledir}/dotfiles/.vim/colors/gruvbox.vim" --create-dirs \
+    https://raw.githubusercontent.com/morhetz/gruvbox/master/colors/gruvbox.vim
 
+# optionally run macOS or Homebrew setup scripts
+# ./macOS.sh
+# ./brew.sh
 
-# Run the MacOS Script
-#./macOS.sh
+echo ""
+echo "✅ Installation Complete!"
+echo "🧼 Reloading shell..."
+exec zsh
 
-# Run the Homebrew Script
-#./brew.sh
-
-echo "Installation Complete!"

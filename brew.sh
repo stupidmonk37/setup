@@ -41,7 +41,6 @@ packages=(
     "midnight-commander"
     "kube-ps1"
     "k9s"
-    "danielfoehrkn/switch/switch"
     "tmux"
     "bat"
     "fzf"

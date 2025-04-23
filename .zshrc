@@ -2,9 +2,10 @@
 # work_env=true(work setup) or work_env=false(home setup)
 work_env=true
 job=groq
-base=(.aliases .tmux.conf .vimrc .zprofile)
-work=(.aliases-$job .zprompt-$job .zshrc-$job)
-work_dotfile="$HOME/git/setup/$job"
+base_file=(.aliases .tmux.conf .vimrc .zprofile)
+base_dir="$HOME/git/setup"
+work_file=(.aliases-$job .zprompt-$job .zshrc-$job)
+work_dir="$HOME/git/setup/$job"
 
 load_base_env() {
     # .bin stuff
@@ -29,6 +30,7 @@ load_base_env() {
     --pointer='▶'
     --info=inline
     --preview 'bat --style=plain --color=always --line-range :500 {}'
+    --bind 'tab:down,shift-tab:up'
     "
 
     # functions for home
@@ -51,27 +53,34 @@ load_base_env() {
     setopt INTERACTIVE_COMMENTS
 
     # Load dotfiles:
-    for file in "${base[@]}"; do
-        [ -r "$file" ] && [ -f "$file" ] && source "$file" 2>/dev/null
+    for file in "${base_file[@]}"; do
+        [ -r "$base_dir/$file" ] && [ -f "$base_dir/$file" ] && source "$base_dir/$file" 2>/dev/null
     done
     unset file
 }
 
 # Load dotfiles based on environment
 if [[ $work_env == "true" ]]; then
-    for file in "${work[@]}"; do
-        [[ -f "$work_dotfile/$file" ]] && source "$work_dotfile/$file"
+    for file in "${work_file[@]}"; do
+        [[ -f "$work_dir/$file" ]] && source "$work_dir/$file"
     done
 
+    # functions for home
+    [[ -f "$HOME/.bin/functions.sh" ]] && source "$HOME/.bin/functions.sh"
+
     load_base_env
+
+    echo "✅ Loaded $job (work environment)"
 
 elif [[ $work_env == "false" ]]; then
-    [[ -f "$HOME/.zprompt" ]] && source "$HOME/.zprompt"
+    [[ -f "$base_dir/.zprompt" ]] && source "$base_dir/.zprompt"
+
     load_base_env
 
+    echo "🏠 Loaded home environment"
+
 else
-    echo "Unknown value for work_env: '$work_env' — must be 'true' or 'false'"
+    echo "⚠️ Unknown value for work_env: '$work_env' — must be 'true' or 'false'"
 fi
 
-echo "Loaded $job environment ($([[ $work_env == true ]] && echo work || echo home))"
 

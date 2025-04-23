@@ -24,7 +24,8 @@ function big_simp {
 big_simp
 #small_simp
 
-#source ~/.bin/functions.sh
+# change working directory
+cd ~/git
 
 ###############
 ##### k8s #####
@@ -37,10 +38,6 @@ kubeoff
 # auto complete
 autoload -Uz compinit
 compinit
-
-# easy context switching
-source <(switcher init zsh)
-source <(switcher completion zsh)
 
 # k8s command completion
 source <(kubectl completion zsh)
