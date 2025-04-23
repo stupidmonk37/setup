@@ -1,6 +1,6 @@
 # Set your environment
 # work_env=true(work setup) or work_env=false(home setup)
-work_env=true
+work_env=false
 job=groq
 base_file=(.aliases .tmux.conf .vimrc .zprofile)
 base_dir="$HOME/git/setup"
