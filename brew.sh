@@ -3,8 +3,11 @@
 set -e
 
 ### 💬 Functions ###
+warn() { echo "     ⚠️ $1"; }
+fail() { echo "     ❌$1"; }
+pass() { echo "     ✅$1"; }
 print_header() {
-  echo "\n🛠️ $1\n"
+  echo "\n🛠️ $1"
 }
 
 spinner() {
@@ -13,54 +16,52 @@ spinner() {
   local i=0
   while kill -0 $pid 2>/dev/null; do
     i=$(( (i + 1) % 4 ))
-    printf "\r      ⏳ %s" "${spin:$i:1}"
+    printf " \r     %s" "${spin:$i:1}"
     sleep 0.1
   done
-  printf "\r      ✅ Done\n"
+  printf "\r     ✅\n"
 }
 
 run_with_spinner() {
   local msg="$1"
   shift
-  echo -n "      ⏳ $msg..."
+  echo -n "        $msg..."
   "$@" &> /dev/null &
   spinner
 }
 
 install_brew_if_needed() {
-  print_header "Checking for Homebrew"
+  print_header "Checking if Homebrew is installed"
   if ! command -v brew &>/dev/null; then
-    echo "      🛠️ Homebrew not found. Installing..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    echo "      ✅ Homebrew installed!"
+    run_with_spinner "Installing Homebrew" /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    pass "Homebrew installed!"
 
     # Configure PATH
     if [[ -x "/opt/homebrew/bin/brew" ]]; then
       export PATH="/opt/homebrew/bin:$PATH"
     fi
   else
-    echo "      ✅ Homebrew already installed."
+    warn "Homebrew already installed!"
   fi
 
   eval "$(/opt/homebrew/bin/brew shellenv)"
   if ! command -v brew &>/dev/null; then
-    echo "      ❌ Failed to configure Homebrew in PATH. Please check manually."
+    fail "Failed to configure Homebrew in PATH. Please check manually."
     exit 1
   fi
 }
 
 configure_zsh_shell() {
-  print_header "Setting Homebrew zsh as default"
+  print_header "Setting Homebrew zsh as default shell"
   local BREW_ZSH="$(brew --prefix)/bin/zsh"
   if [[ "$SHELL" != "$BREW_ZSH" ]]; then
     if ! grep -Fxq "$BREW_ZSH" /etc/shells; then
-      echo "      🛠️ Adding $BREW_ZSH to allowed shells..."
-      echo "$BREW_ZSH" | sudo tee -a /etc/shells > /dev/null
+      run_with_spinner "Adding $BREW_ZSH to allowed shells" echo "$BREW_ZSH" | sudo tee -a /etc/shells > /dev/null
     fi
     chsh -s "$BREW_ZSH"
-    echo "      ✅ Shell changed to Homebrew zsh."
+    pass "Shell changed to Homebrew zsh."
   else
-    echo "      ✅ Homebrew zsh is already the default."
+    warn "Homebrew zsh is already the default!"
   fi
 }
 
@@ -89,10 +90,9 @@ install_packages() {
   print_header "Installing CLI tools"
   for pkg in "${packages[@]}"; do
     if brew list --formula | grep -qx "$pkg"; then
-      echo "      ✅ $pkg already installed"
+      warn "$pkg already installed!"
     else
-      echo "      🛠️ Installing $pkg"
-      brew install "$pkg"
+      run_with_spinner "Installing $pkg" brew install "$pkg"
     fi
   done
 }
@@ -109,10 +109,9 @@ install_apps() {
   print_header "Installing GUI apps"
   for app in "${apps[@]}"; do
     if brew list --cask | grep -qx "$app"; then
-      echo "      ✅ $app already installed"
+      warn "$app already installed"
     else
-      echo "      🛠️ Installing $app"
-      brew install --cask "$app"
+     run_with_spinner "Installing $app" brew install --cask "$app"
     fi
   done
 }
@@ -124,5 +123,5 @@ update_homebrew
 install_packages
 install_apps
 
-echo "\n🎉 Brew setup complete!\n"
+echo "\n🎉 Brew setup complete!"
 

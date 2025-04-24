@@ -14,9 +14,9 @@ GRUVBOX_PATH="$DOTFILE_DIR/.vim/colors/gruvbox.vim"
 # 💬 Helpers
 # -----------------------------
 log() { echo "📘 $1"; }
-success() { echo "✅ $1"; }
-warn() { echo "⚠️ $1"; }
-fail() { echo "❌ $1"; }
+warn() { echo "     ⚠️ $1"; }
+fail() { echo "     ❌$1"; }
+pass() { echo "     ✅ $1"; }
 divider() { echo "\n------------------------------\n"; }
 
 spinner() {
@@ -24,17 +24,17 @@ spinner() {
   local spin='-\|/'
   local i=0
   while kill -0 $pid 2>/dev/null; do
-    i=$(( (i+1) %4 ))
-    printf "\r      ⏳ %s" "${spin:$i:1}"
+    i=$(( (i + 1) % 4 ))
+    printf " \r     %s" "${spin:$i:1}"
     sleep 0.1
   done
-  printf "\r      ✅ Done\n"
+  printf "\r     ✅\n"
 }
 
 run_with_spinner() {
   local msg="$1"
   shift
-  echo -n "      ⏳ $msg..."
+  echo -n "        $msg..."
   "$@" &> /dev/null &
   spinner
 }
@@ -54,7 +54,7 @@ for file in "${FILES[@]}"; do
   fi
 
   if [[ -L "$dest" && "$(readlink "$dest")" == "$src" ]]; then
-    echo "      ⚠️  $file already linked"
+    warn "$file already linked"
   else
     ln -sf "$src" "$dest" && echo "      ✅ Linked $file"
   fi
@@ -66,7 +66,7 @@ done
 divider
 log "Installing gruvbox theme for Vim/Bat"
 if curl -fLo "$GRUVBOX_PATH" --create-dirs "$GRUVBOX_URL" &> /dev/null; then
-  success "gruvbox theme installed!"
+  pass "Gruvbox theme installed!"
 else
   fail "Could not download gruvbox — check internet or URL."
 fi
@@ -86,7 +86,7 @@ fi
 # 🔁 Reload Shell
 # -----------------------------
 divider
-success "Installation Complete!"
+echo "✅ Installation Complete!"
 echo ""
 echo "🧼 Reloading shell..."
 exec zsh
