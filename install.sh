@@ -1,18 +1,24 @@
 #!/usr/bin/env zsh
-############################
-# This script:
-# - Symlinks dotfiles from ~/git/setup to ~/
-# - Installs the gruvbox color scheme for vim/bat
-# - Optionally runs macOS and Homebrew setup scripts
-############################
 
-# dotfiles directory
-dotfiledir="${HOME}/git/setup"
+set -e
 
-# list of files/folders to symlink
-files=(.vim .vimrc .zshrc .zprofile .zprompt .aliases .bin .tmux.conf)
+# -----------------------------
+# 🧠 Configuration
+# -----------------------------
+DOTFILE_DIR="$HOME/git/setup"
+FILES=(.vim .vimrc .zshrc .zprofile .zprompt .aliases .bin .tmux.conf)
+GRUVBOX_URL="https://raw.githubusercontent.com/morhetz/gruvbox/master/colors/gruvbox.vim"
+GRUVBOX_PATH="$DOTFILE_DIR/.vim/colors/gruvbox.vim"
 
-# fancy spinning action
+# -----------------------------
+# 💬 Helpers
+# -----------------------------
+log() { echo "📘 $1"; }
+success() { echo "✅ $1"; }
+warn() { echo "⚠️ $1"; }
+fail() { echo "❌ $1"; }
+divider() { echo "\n------------------------------\n"; }
+
 spinner() {
   local pid=$!
   local spin='-\|/'
@@ -25,7 +31,6 @@ spinner() {
   printf "\r      ✅ Done\n"
 }
 
-# Run with spinner wrapper
 run_with_spinner() {
   local msg="$1"
   shift
@@ -34,38 +39,55 @@ run_with_spinner() {
   spinner
 }
 
-# create symlinks
-echo ""
-echo "🔗 Symlinking dotfiles from $dotfiledir into ~/"
-for file in "${files[@]}"; do
-    src="${dotfiledir}/${file}"
-    dest="${HOME}/${file}"
-    if [[ -L "$dest" && "$(readlink "$dest")" == "$src" ]]; then
-        echo "      ⚠️  $file already linked"
-    else
-        ln -sf "$src" "$dest" && echo "      ✅ Linked ~/${file}"
-    fi
+# -----------------------------
+# 🔗 Symlink Dotfiles
+# -----------------------------
+divider
+log "Linking dotfiles from $DOTFILE_DIR → ~/"
+for file in "${FILES[@]}"; do
+  src="${DOTFILE_DIR}/${file}"
+  dest="${HOME}/${file}"
+
+  if [[ ! -e "$src" ]]; then
+    warn "$file not found in $DOTFILE_DIR — skipping."
+    continue
+  fi
+
+  if [[ -L "$dest" && "$(readlink "$dest")" == "$src" ]]; then
+    echo "      ⚠️  $file already linked"
+  else
+    ln -sf "$src" "$dest" && echo "      ✅ Linked $file"
+  fi
 done
-echo ""
 
-# install the gruvbox colorscheme for Vim/Bat
-echo "🎨 Installing gruvbox color scheme..."
-if curl -fLo "${dotfiledir}/.vim/colors/gruvbox.vim" --create-dirs \
-    https://raw.githubusercontent.com/morhetz/gruvbox/master/colors/gruvbox.vim  &> /dev/null; then
-    echo "      ✅ gruvbox installed!"
+# -----------------------------
+# 🎨 Install Gruvbox Colors
+# -----------------------------
+divider
+log "Installing gruvbox theme for Vim/Bat"
+if curl -fLo "$GRUVBOX_PATH" --create-dirs "$GRUVBOX_URL" &> /dev/null; then
+  success "gruvbox theme installed!"
 else
-    echo "      ❌ Failed to install gruvbox theme!"
+  fail "Could not download gruvbox — check internet or URL."
 fi
-echo ""
 
-# optionally run macOS or Homebrew setup scripts
-# ./macOS.sh
- ./brew.sh
+# -----------------------------
+# 🍺 Run Homebrew/macOS Setup
+# -----------------------------
+divider
+log "Running Homebrew setup"
+if [[ -x "./brew.sh" ]]; then
+  ./brew.sh
+else
+  warn "brew.sh not found or not executable."
+fi
 
-echo ""
-echo "✅ Installation Complete!"
+# -----------------------------
+# 🔁 Reload Shell
+# -----------------------------
+divider
+success "Installation Complete!"
 echo ""
 echo "🧼 Reloading shell..."
-echo ""
 exec zsh
 
