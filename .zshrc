@@ -7,18 +7,28 @@ base_dir="$HOME/git/setup"
 work_file=(.aliases-$job .zprompt-$job .zshrc-$job)
 work_dir="$HOME/git/setup/$job"
 
-load_base_env() {
-    # .bin stuff
-    export PATH="$HOME/.bin:$HOME/.local/bin:$PATH"
+fzf_setup() {
+    # fzf
+    if command -v fzf >/dev/null; then
+        source <(fzf --zsh)
+    else
+        echo "⚠️ fzf not found! Consider installing via brew install fzf"
+    fi
 
-    # Colorful grep
-    export GREP_COLORS='1;35;40'
+    # fzf-tab
+    local fzf_tab="$HOME/.fzf-tab"
+    if [[ ! -d "$fzf_tab" ]]; then
+        echo "📦 Installing fzf-tab..."
+        git clone https://github.com/Aloxaf/fzf-tab "$fzf_tab"
+    fi
+    source "$fzf_tab/fzf-tab.plugin.zsh"
 
-    # less command like vim
-    export LESS='-F -R -M -i -N -j5 -X'
-
-    # ls command colors
-    export LSCOLORS="ExGxxxxxCxxxxxxxxxxxxx"
+    # fzf-tab config
+    zstyle ':completion:*:descriptions' format '[%d]'
+    zstyle ':completion:*' menu select
+    zstyle ':fzf-tab:*' fzf-command fzf
+    zstyle ':fzf-tab:*' fzf-bindings 'tab:down,shift-tab:up'
+    zstyle ':fzf-tab:complete:cd:*' fzf-preview 'ls -l --color=always $realpath'
 
     export FZF_DEFAULT_OPTS="
     --height=40%
@@ -32,6 +42,20 @@ load_base_env() {
     --preview 'bat --style=plain --color=always --line-range :500 {}'
     --bind 'tab:down,shift-tab:up'
     "
+}
+
+load_base_env() {
+    # .bin stuff
+    export PATH="$HOME/.bin:$HOME/.local/bin:$PATH"
+
+    # Colorful grep
+    export GREP_COLORS='1;35;40'
+
+    # less command like vim
+    export LESS='-F -R -M -i -N -j5 -X'
+
+    # ls command colors
+    export LSCOLORS="ExGxxxxxCxxxxxxxxxxxxx"
 
     # functions for home
     [[ -f "$HOME/.bin/home-functions.sh" ]] && source "$HOME/.bin/home-functions.sh"
@@ -42,9 +66,9 @@ load_base_env() {
 
     # not sure what i did
     autoload -Uz colors && colors
-
-    # setup fzf key bindings and fuzzy completion
-    source <(fzf --zsh)
+    
+    # load fzf function
+    fzf_setup
 
     # allow prompt updates ie date/time
     setopt PROMPT_SUBST
@@ -54,7 +78,7 @@ load_base_env() {
 
     # Load dotfiles:
     for file in "${base_file[@]}"; do
-        [ -r "$base_dir/$file" ] && [ -f "$base_dir/$file" ] && source "$base_dir/$file" 2>/dev/null
+        [[ -r "$base_dir/$file" ]] && [[ -f "$base_dir/$file" ]] && source "$base_dir/$file" 2>/dev/null
     done
     unset file
 }

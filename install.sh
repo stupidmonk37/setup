@@ -38,7 +38,13 @@ run_with_spinner() {
 echo ""
 echo "🔗 Symlinking dotfiles from $dotfiledir into ~/"
 for file in "${files[@]}"; do
-    ln -sf "${dotfiledir}/${file}" "${HOME}/${file}" && echo "      ✅ Linked ~/${file}"
+    src="${dotfiledir}/${file}"
+    dest="${HOME}/${file}"
+    if [[ -L "$dest" && "$(readlink "$dest")" == "$src" ]]; then
+        echo "      ⚠️  $file already linked"
+    else
+        ln -sf "$src" "$dest" && echo "      ✅ Linked ~/${file}"
+    fi
 done
 echo ""
 
