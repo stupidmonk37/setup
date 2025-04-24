@@ -3,9 +3,9 @@
 set -e
 
 ### 💬 Functions ###
-warn() { echo "     ⚠️ $1"; }
-fail() { echo "     ❌$1"; }
-pass() { echo "     ✅$1"; }
+warn() { echo "     ⚠️  $1"; }
+fail() { echo "     ❌ $1"; }
+pass() { echo "     ✅ $1"; }
 print_header() {
   echo "\n🛠️ $1"
 }

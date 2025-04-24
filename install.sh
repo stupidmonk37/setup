@@ -14,8 +14,8 @@ GRUVBOX_PATH="$DOTFILE_DIR/.vim/colors/gruvbox.vim"
 # 💬 Helpers
 # -----------------------------
 log() { echo "📘 $1"; }
-warn() { echo "     ⚠️ $1"; }
-fail() { echo "     ❌$1"; }
+warn() { echo "     ⚠️  $1"; }
+fail() { echo "     ❌ $1"; }
 pass() { echo "     ✅ $1"; }
 divider() { echo "\n------------------------------\n"; }
 
