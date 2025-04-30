@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-
-if [[ -n "$TMUX" ]]; then
-      fzf-tmux -p 80%,60% "$@"
-    else
-        fzf "$@"
-fi
-

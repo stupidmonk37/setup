@@ -26,63 +26,72 @@ k8s-switch() {
   echo "✅ Switched to context: $context with namespace: $namespace"
 }
 
+tw () {
+	[[ -n "$TMUX" ]] && change="switch-client" || change="attach-session"
 
-tw() {
-  [[ -n "$TMUX" ]] && change="switch-client" || change="attach-session"
+	if [[ "$1" == "-ls" ]]; then
+		tmux list-sessions
+		return
+	fi
 
-  # List all sessions
-  if [[ "$1" == "-ls" ]]; then
-    tmux list-sessions
-    return
-  fi
+	if [[ -n "$1" ]]; then
+		# Try to attach/switch; if session doesn't exist, create it (detached), but do NOT switch
+		if ! tmux has-session -t "$1" 2>/dev/null; then
+			tmux new-session -d -s "$1" -n "$1"
+			echo "🆕 Created new detached session: $1"
+		else
+			tmux $change -t "$1"
+		fi
+		return
+	fi
 
-  # Attach to or create a specific session
-  if [[ -n "$1" ]]; then
-    tmux $change -t "$1" 2>/dev/null || {
-      tmux new-session -d -s "$1" -n "$1"
-      tmux $change -t "$1"
-    }
-    return
-  fi
+	local target session window
+	target=$(tmux list-windows -a -F "#{session_name}:#{window_index}:::#{session_name}  #{window_name}#{window_flags}" | \
+		sed 's/-//g' | \
+		fzf --exit-0 --with-nth=2 --delimiter=":::" \
+			--preview='
+				session_window=$(echo {} | cut -d":" -f1,2)
+				tmux list-panes -t "$session_window" -F "│ #{pane_index}: #{pane_current_command} (#{pane_current_path})"
+			' \
+			--preview-window=right:70%:wrap) || return
 
-  # Build fzf menu: window name + indicator (without -), but keep full session:window in value
-  local target session window
-  target=$(tmux list-windows -a -F "#{session_name}:#{window_index}:::#{session_name}  #{window_name}#{window_flags}" | \
-    sed 's/-//g' | \
-    fzf --exit-0 --with-nth=2 --delimiter=":::" \
-        --preview='
-          session_window=$(echo {} | cut -d":" -f1,2)
-          tmux list-panes -t "$session_window" -F "│ #{pane_index}: #{pane_current_command} (#{pane_current_path})"
-        ' \
-        --preview-window=right:70%:wrap) || return
+	session="${target%%:*}"
+	window="${target%%:::*}"
 
-  session="${target%%:*}"
-  window="${target%%:::*}"
-
-  if [[ -n "$TMUX" ]]; then
-    tmux switch-client -t "$session"
-    tmux select-window -t "$window"
-  else
-    tmux attach-session -t "$session" \; select-window -t "$window"
-  fi
+	if [[ -n "$TMUX" ]]; then
+		tmux switch-client -t "$session"
+		tmux select-window -t "$window"
+	else
+		tmux attach-session -t "$session" \; select-window -t "$window"
+	fi
 }
 
+tkill () {
+	if [[ "$1" == "--all" ]]; then
+		read -q "REPLY?⚠️  Kill ALL tmux sessions? [y/N] " || {
+			echo "\n❌ Aborted."
+			return 1
+		}
+		echo "\n🔪 Killing all tmux sessions..."
+		tmux list-sessions -F '#S' | while read -r session; do
+			tmux kill-session -t "$session"
+			echo "☠️  Killed $session"
+		done
+		return
+	fi
 
+	local sessions
+	sessions="$(tmux ls | fzf --exit-0 --multi)" || return $?
 
-
-# zsh; needs setopt re_match_pcre. You can, of course, adapt it to your own shell easily.
-tks () {
-    local sessions
-    sessions="$(tmux ls|fzf --exit-0 --multi)"  || return $?
-    local i
-    for i in "${(f@)sessions}"
-    do
-        [[ $i =~ '([^:]*):.*' ]] && {
-            echo "Killing $match[1]"
-            tmux kill-session -t "$match[1]"
-        }
-    done
+	local i
+	for i in "${(f@)sessions}"; do
+		[[ $i =~ '([^:]*):.*' ]] && {
+			echo "Killing $match[1]"
+			tmux kill-session -t "$match[1]"
+		}
+	done
 }
+
 
 fvfind() {
   local file
