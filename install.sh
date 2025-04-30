@@ -72,6 +72,16 @@ else
 fi
 
 # -----------------------------
+# 🗂️ Install fzf-tab
+# -----------------------------
+divider
+local fzf_tab="$HOME/.fzf-tab"
+if [[ ! -d "$fzf_tab" ]]; then
+    echo "📦 Installing fzf-tab..."
+    git clone https://github.com/Aloxaf/fzf-tab "$fzf_tab"
+fi
+
+# -----------------------------
 # 🍺 Run Homebrew/macOS Setup
 # -----------------------------
 divider
