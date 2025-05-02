@@ -2,22 +2,22 @@
 
 set -e
 
-# -----------------------------
-# 🧠 Configuration
-# -----------------------------
+# ==========================================================================
+# variables
+# ==========================================================================
 DOTFILE_DIR="$HOME/git/setup"
 FILES=(.vim .vimrc .zshrc .zprofile .zprompt .aliases .bin .tmux.conf)
 GRUVBOX_URL="https://raw.githubusercontent.com/morhetz/gruvbox/master/colors/gruvbox.vim"
 GRUVBOX_PATH="$DOTFILE_DIR/.vim/colors/gruvbox.vim"
 
-# -----------------------------
-# 💬 Helpers
-# -----------------------------
-log() { echo "📘 $1"; }
+# ==========================================================================
+# helpful functions
+# ==========================================================================
 warn() { echo "     ⚠️  $1"; }
 fail() { echo "     ❌ $1"; }
 pass() { echo "     ✅ $1"; }
-divider() { echo "\n------------------------------\n"; }
+#divider() { print "\n------------------------------\n"; }
+header() { print "\n🛠️  $1"; }
 
 spinner() {
   local pid=$!
@@ -39,65 +39,79 @@ run_with_spinner() {
   spinner
 }
 
-# -----------------------------
-# 🔗 Symlink Dotfiles
-# -----------------------------
-divider
-log "Linking dotfiles from $DOTFILE_DIR → ~/"
-for file in "${FILES[@]}"; do
-  src="${DOTFILE_DIR}/${file}"
-  dest="${HOME}/${file}"
+# ==========================================================================
+# symlink setup
+# ==========================================================================
+symlink_setup() {
+    header "Linking dotfiles from $DOTFILE_DIR → ~/"
+    for file in "${FILES[@]}"; do
+        src="${DOTFILE_DIR}/${file}"
+        dest="${HOME}/${file}"
 
-  if [[ ! -e "$src" ]]; then
-    warn "$file not found in $DOTFILE_DIR — skipping."
-    continue
-  fi
+        if [[ ! -e "$src" ]]; then
+            warn "$file not found in $DOTFILE_DIR — skipping."
+            continue
+        fi
 
-  if [[ -L "$dest" && "$(readlink "$dest")" == "$src" ]]; then
-    warn "$file already linked"
-  else
-    ln -sf "$src" "$dest" && echo "      ✅ Linked $file"
-  fi
-done
+        if [[ -L "$dest" && "$(readlink "$dest")" == "$src" ]]; then
+            warn "$file already linked"
+        else
+            ln -sf "$src" "$dest" && echo "      ✅ Linked $file"
+        fi
+    done
+}
 
-# -----------------------------
-# 🎨 Install Gruvbox Colors
-# -----------------------------
-divider
-log "Installing gruvbox theme for Vim/Bat"
-if curl -fLo "$GRUVBOX_PATH" --create-dirs "$GRUVBOX_URL" &> /dev/null; then
-  pass "Gruvbox theme installed!"
-else
-  fail "Could not download gruvbox — check internet or URL."
-fi
+# ==========================================================================
+# install vim/bat theme
+# ==========================================================================
+install_vim_theme() {
+    header "Installing gruvbox theme for Vim/Bat"
+    if curl -fLo "$GRUVBOX_PATH" --create-dirs "$GRUVBOX_URL" &> /dev/null; then
+        pass "Gruvbox theme installed!"
+    else
+        fail "Could not download gruvbox — check internet or URL."
+    fi
+}
 
-# -----------------------------
-# 🗂️ Install fzf-tab
-# -----------------------------
-divider
-local fzf_tab="$HOME/.fzf-tab"
-if [[ ! -d "$fzf_tab" ]]; then
-    echo "📦 Installing fzf-tab..."
-    git clone https://github.com/Aloxaf/fzf-tab "$fzf_tab"
-fi
+# ==========================================================================
+# run brew.sh
+# ==========================================================================
+run_brew() {
+    header "Running Homebrew setup"
+    if [[ -x "./brew.sh" ]]; then
+        ./brew.sh
+    else
+        warn "brew.sh not found or not executable."
+    fi
+}
 
-# -----------------------------
-# 🍺 Run Homebrew/macOS Setup
-# -----------------------------
-divider
-log "Running Homebrew setup"
-if [[ -x "./brew.sh" ]]; then
-  ./brew.sh
-else
-  warn "brew.sh not found or not executable."
-fi
+# ==========================================================================
+# install fzf-tab
+# ==========================================================================
+install_fzf_tab() {
+    fzf_tab="$HOME/.fzf-tab"
+    if [[ ! -d "$fzf_tab" ]]; then
+        echo "📦 Installing fzf-tab..."
+        git clone https://github.com/Aloxaf/fzf-tab "$fzf_tab"
+    fi
+}
 
-# -----------------------------
-# 🔁 Reload Shell
-# -----------------------------
-divider
-echo "✅ Installation Complete!"
-echo ""
-echo "🧼 Reloading shell..."
-exec zsh
+# ==========================================================================
+# all done
+# ==========================================================================
+print_done() {
+    echo "✅ Installation Complete!"
+    echo ""
+    echo "🧼 Reloading shell..."
+    exec zsh
+}
+
+# ==========================================================================
+# main script
+# ==========================================================================
+symlink_setup
+install_vim_theme
+run_brew
+install_fzf_tab
+print_done
 

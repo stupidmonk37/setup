@@ -2,13 +2,21 @@
 
 set -e
 
-### 💬 Functions ###
+sudo -v
+
+# =========================================================================
+# variables
+# =========================================================================
+PACKAGES=(bash zsh tree watch midnight-commander kube-ps1 k9s tmux bat fzf)
+APPS=(sublime-text visual-studio-code rectangle chatgpt iterm2)
+
+# =========================================================================
+# helpful functions
+# =========================================================================
 warn() { echo "     ⚠️  $1"; }
 fail() { echo "     ❌ $1"; }
 pass() { echo "     ✅ $1"; }
-print_header() {
-  echo "\n🛠️ $1"
-}
+header() { print "\n🛠️ $1"; }
 
 spinner() {
   local pid=$!
@@ -30,15 +38,18 @@ run_with_spinner() {
   spinner
 }
 
+# =========================================================================
+# install homebrew if needed
+# =========================================================================
 install_brew_if_needed() {
-  print_header "Checking if Homebrew is installed"
+  header "Checking if Homebrew is installed"
   if ! command -v brew &>/dev/null; then
     run_with_spinner "Installing Homebrew" /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     pass "Homebrew installed!"
 
     # Configure PATH
     if [[ -x "/opt/homebrew/bin/brew" ]]; then
-      export PATH="/opt/homebrew/bin:$PATH"
+      export PATH="/opt/homebrew/bin:${PATH}"
     fi
   else
     warn "Homebrew already installed!"
@@ -51,8 +62,11 @@ install_brew_if_needed() {
   fi
 }
 
+# =========================================================================
+# set shell
+# =========================================================================
 configure_zsh_shell() {
-  print_header "Setting Homebrew zsh as default shell"
+  header "Setting Homebrew zsh as default shell"
   local BREW_ZSH="$(brew --prefix)/bin/zsh"
   if [[ "$SHELL" != "$BREW_ZSH" ]]; then
     if ! grep -Fxq "$BREW_ZSH" /etc/shells; then
@@ -65,30 +79,23 @@ configure_zsh_shell() {
   fi
 }
 
+# =========================================================================
+# updating homebrew
+# =========================================================================
 update_homebrew() {
-  print_header "Updating and cleaning Homebrew"
+  header "Updating and cleaning Homebrew"
   run_with_spinner "Updating brew" brew update
   run_with_spinner "Upgrading brew" brew upgrade
   run_with_spinner "Upgrading casks" brew upgrade --cask
   run_with_spinner "Cleaning up" brew cleanup
 }
 
+# =========================================================================
+# brew install packages
+# =========================================================================
 install_packages() {
-  local packages=(
-    "bash"
-    "zsh"
-    "tree"
-    "watch"
-    "midnight-commander"
-    "kube-ps1"
-    "k9s"
-    "tmux"
-    "bat"
-    "fzf"
-  )
-
-  print_header "Installing CLI tools"
-  for pkg in "${packages[@]}"; do
+  header "Installing CLI tools"
+  for pkg in "${PACKAGES[@]}"; do
     if brew list --formula | grep -qx "$pkg"; then
       warn "$pkg already installed!"
     else
@@ -97,17 +104,12 @@ install_packages() {
   done
 }
 
+# =========================================================================
+# brew install cask (apps)
+# =========================================================================
 install_apps() {
-  local apps=(
-    "sublime-text"
-    "visual-studio-code"
-    "rectangle"
-    "chatgpt"
-    "iterm2"
-  )
-
-  print_header "Installing GUI apps"
-  for app in "${apps[@]}"; do
+  header "Installing GUI apps"
+  for app in "${APPS[@]}"; do
     if brew list --cask | grep -qx "$app"; then
       warn "$app already installed"
     else
@@ -116,7 +118,9 @@ install_apps() {
   done
 }
 
-### 🚀 Main Script ###
+# =========================================================================
+# main script
+# =========================================================================
 install_brew_if_needed
 configure_zsh_shell
 update_homebrew
