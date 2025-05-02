@@ -1,0 +1,4 @@
+# path to update innolight locally
+/nfs/geg2/c2r9-data1/okilani/innolight_update_devices.sh
+
+# should be applied pretty much always

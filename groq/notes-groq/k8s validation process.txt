@@ -33,23 +33,53 @@ kubectl-check-racks <rack> <rack> <rack>
 
 
 
+###############################################################################
+####### CMDS ##################################################################
+###############################################################################
+
+kubectl describe gv (c1r1-gn1, c1r1, c1r1-c1r2)
+
+kubectl validation status
+kubectl validation status --nodes c1r3-gn3
+kubectl validation status --racks c1r3
+kubectl validation status --rack c1r2
+kubectl validation status --only-failed
+kubectl validation status --manual-runs manual-cholman-20250416122314
 
 
+kubectl validation logs list --validation c1r1-c1r2
+kubectl validation logs fetch --validation c1r1-c1r2
+kubectl validation logs fetch --validation manual-cholman-20250416122314
+kubectl validation logs fetch --validation c1r1-c1r2 --validator multirackxt-validation --scope c1r1-gn9,c1r2-gn1,c1r2-gn2,c1r2-gn3,c1r2-gn4 --retry 2 --container groq-validator
+kubectl validation logs parse --validation c0r8
 
 
-# groqnode validator
+kubectl validation requalify --node c1r2-gn5
 
-# show running jobs for node
-kubectl -n groq-system describe gv <rack-node>
+kubectl validation manual --nodes c1r3-gn1 --validator node-validation-2
+
+kubectl validation retry --validation c0r10-c0r11
+kubectl validation retry --validation c0r7-gn1 # retry failing tests
+kubectl validation retry --validation c0r7-gn1 --from-start # retry all tests
+kubectl validation retry --node c1r2-gn5
+kubectl validation retry --manual-run cholman-c1r2-2025-03-26-1234
+
+kc get gv | grep c0r10
+kc validation nudge --validation c0r10-c0r11 # 
+
+###############################################################################
+##### Validation Status #######################################################
+###############################################################################
 
 # prevent automated validation of specific nodes
 validation.groq.io/ignore-node=true
 
-
+-------------------------------------------------------------------------------
 $ kubectl validation status --nodes c1r3-gn3
 NAME       NODE   RACK   PREVRACK   NEXTRACK   XRACK
 c1r3-gn3   true   true   true                  true
 
+-------------------------------------------------------------------------------
 $ kubectl validation status --racks c1r1
 NAME       NODE   RACK   PREVRACK   NEXTRACK   XRACK
 c1r1-gn1   true   true              failed
@@ -64,6 +94,7 @@ c1r1-gn9   true   true              failed
 Some failures were identified. To inspect the logs, run:
 validationcli logs fetch --validation c1r1-c1r2 next rack
 
+-------------------------------------------------------------------------------
 $ kubectl validation status  --rack c1r2
 NAME                                    NODE          RACK          PREVRACK   NEXTRACK   XRACK
 node-validation-testbed-control-plane
@@ -78,6 +109,7 @@ c1r2-gn7                                true          in-progress
 c1r2-gn8                                true          in-progress
 c1r2-gn9                                true          in-progress
 
+-------------------------------------------------------------------------------
 $ kubectl validation status --only-failed
 NAME       NODE   RACK     PREVRACK   NEXTRACK   XRACK
 c1r2-gn1   true   failed
@@ -86,20 +118,22 @@ validationcli logs fetch --validation c1r2
 
 Importantly - when looking for node/rack status, this will NOT consider manually triggered test runs - only the full system qualification runs.
 
-### Fetching logs
+###############################################################################
+##### Fetching logs ###########################################################
+###############################################################################
 
 Currently you need to know the name of the validation to get logs, but that’s straightforward.
 
 “c1r1-gn1” for node level validations.
-
 “c1r1” for rack level validations.
-
 “c1r1-c1r2” for cross-rack validations.
 
+-------------------------------------------------------------------------------
 # Show the logs for the most recent retry of any failed job in the validation
 $ kubectl validation logs fetch --validation c1r1-c1r2
 The fluxulator could not implode the decision matrix when inducting node c1r2-gn5 to the hypermarket
 
+-------------------------------------------------------------------------------
 # See what logs are available for a validation
 $ kubectl validation logs list --validation c1r1-c1r2
 VALIDATOR                SCOPE                                          RETRY   STATUS             CONTAINERS
@@ -108,10 +142,12 @@ multirackxt-validation   c1r1-gn6,c1r1-gn7,c1r1-gn8,c1r1-gn9,c1r2-gn1   2       
 multirackxt-validation   c1r1-gn8,c1r1-gn9,c1r2-gn1,c1r2-gn2,c1r2-gn3   2       failed-retryable   [groq-validator]
 multirackxt-validation   c1r1-gn7,c1r1-gn8,c1r1-gn9,c1r2-gn1,c1r2-gn2   2       failed-retryable   [groq-validator]
 
+-------------------------------------------------------------------------------
 # Show a specific single log
 $ kubectl validation logs fetch --validation c1r1-c1r2 --validator multirackxt-validation --scope c1r1-gn9,c1r2-gn1,c1r2-gn2,c1r2-gn3,c1r2-gn4 --retry 2 --container groq-validator
 The singularity failed to make enough paperclips
 
+-------------------------------------------------------------------------------
 # Automatically parse log output for link failures
 $ kubectl validation logs parse --validation c0r8
 RX/N4/C2/P4 ↔ RX/N3/C2/P15
@@ -122,28 +158,31 @@ RX/N4/C2/P11 ↔ RX/N4/C5/P14 (internal)
 RX/N4/C2/P6 ↔ RX/N4/C6/P6 (internal)
 RX/N4/C3/P6 ↔ RX/N4/C2/P12 (internal)
 RX/N4/C2/P14 ↔ RX/N4/C1/P12 (internal)
-```
 
-### Retry a hardware qualification test from the point of failure
+###############################################################################
+##### Retry a hardware qualification test from the point of failure ###########
+###############################################################################
 
-```bash
+-------------------------------------------------------------------------------
 $ kubectl validation retry --node c1r2-gn5
 Node c1r2-gn5 failed groq-sweep-xt4444-8c for scope c1r2-gn5 after 3 retries.
 Retry? (y/n): y
 Validation status for groq-sweep-xt4444-8c on c1r2-gn5 has been reset. Monitor new progress with
 `validation status --node c1r2-gn5`
 
+-------------------------------------------------------------------------------
 $ kubectl validation retry --manual-run cholman-c1r2-2025-03-26-1234
 (same thing but retrying a manually triggered test run)
-```
 
 For use when a test has failed, and maybe we’ve done something simple like reboot, and we want to continue the tests from the point of failure. This will not rerun tests that have already passed. But generally we’d prefer to use the full requalifaction process if we’ve made any changes
 
-### Retry a hardware qualification test from scratch
+###############################################################################
+##### Retry a hardware qualification test from scratch ########################
+###############################################################################
 
 Rerunning the entire hardware qualification suite will rerun the node, rack, and cross-rack tests. It ensure none of the nodes are being used, then it will remove the validation labels from all involved nodes so that all tests can be repeated.
 
-```bash
+-------------------------------------------------------------------------------
 $ kubectl validation requalify --node c1r2-gn5
 The following actions will be taken:
 * Node validation will be removed from c1r2-gn5
@@ -154,21 +193,23 @@ Nodes c1r1-gn5 through to c1r3-gn4 will be unavailable for production until the 
 No production workloads detected on these nodes.
 
 Continue? y/n
-```
 
 The `GroqValidation` resources required to re-run those test will be deleted so that the GroqNodeController can restart the process from scratch.
 
 The repair (or similar) taint will be applied during the test runs
 
-### Run a specific test(s) manually
+###############################################################################
+##### Run a specific test(s) manually #########################################
+###############################################################################
 
-```bash
+-------------------------------------------------------------------------------
 $ kubectl validation manual --nodes c1r3-gn1 --validator node-validation-2
 Error: preflight check failed
 # TODO: make this output useful
 # preflight check failing means either: node has the {node,rack,etc}-complete labels and is not tainted for repair
 # or a node has the validation.groq.io/ignore-node label applied
 
+-------------------------------------------------------------------------------
 $ kubectl validation manual --nodes c1r1-gn1 --validator node-validation-2
 About to create the following resource. Press Y to create it.
 {"metadata":{"name":"manual-cholman-20250416122314","namespace":"groq-system","creationTimestamp":null},"spec":{"targetNodes":["c1r1-gn1"],"stopOnFailure":true,"phases":[{"name":"node-validation-2","namespace":"groqnode-controller-system"}]},"status":{}}
@@ -177,13 +218,14 @@ A new GroqValidation created: manual-cholman-20250416122314
 To check the status of the validation, run:
 validationcli status --manual-runs manual-cholman-20250416122314
 
+-------------------------------------------------------------------------------
 $ kubectl validation status --manual-runs manual-cholman-20250416122314
 VALIDATION                      VALIDATOR           SCOPE      RESULT
 manual-cholman-20250416122314   node-validation-2   c1r1-gn1   finished
 
+-------------------------------------------------------------------------------
 $ kubectl validation logs fetch --validation manual-cholman-20250416122314
 # no logs output because this one succeeded, but you get the idea
-```
 
 Running a manual run does not impact the validation labels of the nodes. 
 
@@ -191,7 +233,6 @@ The repair taint (or another similar one) is required to exist (unless overridde
 
 If this is being used to triage and repair an issue with hardware, the ideal workflow would involve re-running the system qualification suite (with the retry commands above) once the manual run passes in order to prove that the fixer didn’t break something else while fixing the problem.
 
-```bash
 kubectl validation status
 kubectl validation logs parse --validation c0r7-gn1
 kubectl validation retry --validation c0r7-gn1 # retry failing tests
@@ -202,4 +243,3 @@ kc describe gv c0r10-c0r11
 kc validation nudge --validation c0r10-c0r11 # 
 kubectl validation retry --validation c0r10-c0r11
 
-```

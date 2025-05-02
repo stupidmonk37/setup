@@ -53,7 +53,7 @@ tw () {
 				session_window=$(echo {} | cut -d":" -f1,2)
 				tmux list-panes -t "$session_window" -F "│ #{pane_index}: #{pane_current_command} (#{pane_current_path})"
 			' \
-			--preview-window=right:70%:wrap) || return
+			--preview-window=right:50%:wrap) || return
 
 	session="${target%%:*}"
 	window="${target%%:::*}"
@@ -95,13 +95,13 @@ tkill () {
 
 fvfind() {
   local file
-  file=$(fzf-tmux -p 80%,60% --preview 'bat --theme="gruvbox" --plain --color=always {}' --preview-window=right:70%)
+  file=$(fzf-tmux --exact -p 80%,60% --preview 'bat --theme="gruvbox" --plain --color=always {}' --preview-window=right:50%)
   [ -n "$file" ] && vim "$file"
 }
 
 fbfind() {
   local file
-  file=$(fzf-tmux -p 80%,60% --preview 'bat --theme="gruvbox-dark" --plain --color=always {}' --preview-window=right:70%)
+  file=$(fzf-tmux --exact -p 80%,60% --preview 'bat --theme="gruvbox-dark" --plain --color=always {}' --preview-window=right:50%)
   [ -n "$file" ] && bat --theme="gruvbox-dark" --plain --color=always "$file"
 }
 
@@ -110,15 +110,15 @@ fbfind() {
 # bind-key 0 run "tmux split-window -l 12 'bash -ci ftpane'"
 
 
-fcd() {
-  cd "$(find ${1:-.} -type d 2> /dev/null | fzf-tmux -p 70%,50% --preview 'ls -alhG {}' --preview-window=right:70%)"
-}
+#fcd() {
+#  cd "$(find ${1:-.} -type d 2> /dev/null | fzf-tmux --exact -p 70%,50% --preview 'ls -alhG {}' --preview-window=right:50%)"
+#}
 
 fh() {
   eval "$(history | fzf | sed 's/ *[0-9]* *//')"
 }
 
 fnotes() {
-  bat --theme="gruvbox-dark" --plain "$(find ~/git/setup/groq/notes-groq -type f 2> /dev/null | fzf-tmux -p 70%,50% --preview 'bat --theme="gruvbox-dark" --plain --color=always --style=numbers {}' --preview-window=right:70%)"
+  bat --theme="gruvbox-dark" --plain "$(find ~/git/setup/groq/notes-groq -type f 2> /dev/null | fzf-tmux --exact -p 70%,50% --preview 'bat --theme="gruvbox-dark" --plain --color=always --style=numbers {}' --preview-window=right:50%)"
 }
 
