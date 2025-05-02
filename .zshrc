@@ -69,9 +69,6 @@ load_base_env() {
     
     # load fzf function
     fzf_setup
-    
-    # wait
-    sleep 3
 
     # allow prompt updates ie date/time
     setopt PROMPT_SUBST

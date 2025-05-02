@@ -43,7 +43,7 @@ run_with_spinner() {
 # symlink setup
 # ==========================================================================
 symlink_setup() {
-    header "Linking dotfiles from $DOTFILE_DIR → ~/"
+    header "Linking dotfiles from ~/git/setup → ~/"
     for file in "${FILES[@]}"; do
         src="${DOTFILE_DIR}/${file}"
         dest="${HOME}/${file}"
@@ -56,7 +56,7 @@ symlink_setup() {
         if [[ -L "$dest" && "$(readlink "$dest")" == "$src" ]]; then
             warn "$file already linked"
         else
-            ln -sf "$src" "$dest" && echo "      ✅ Linked $file"
+            ln -sf "$src" "$dest" && echo "     ✅ Linked $file"
         fi
     done
 }
@@ -67,7 +67,7 @@ symlink_setup() {
 install_vim_theme() {
     header "Installing gruvbox theme for Vim/Bat"
     if curl -fLo "$GRUVBOX_PATH" --create-dirs "$GRUVBOX_URL" &> /dev/null; then
-        pass "Gruvbox theme installed!"
+        pass " Gruvbox theme installed!"
     else
         fail "Could not download gruvbox — check internet or URL."
     fi

@@ -45,7 +45,7 @@ install_brew_if_needed() {
   header "Checking if Homebrew is installed"
   if ! command -v brew &>/dev/null; then
     run_with_spinner "Installing Homebrew" /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    pass "Homebrew installed!"
+    pass " Homebrew installed!"
 
     # Configure PATH
     if [[ -x "/opt/homebrew/bin/brew" ]]; then
@@ -73,7 +73,7 @@ configure_zsh_shell() {
       run_with_spinner "Adding $BREW_ZSH to allowed shells" echo "$BREW_ZSH" | sudo tee -a /etc/shells > /dev/null
     fi
     chsh -s "$BREW_ZSH"
-    pass "Shell changed to Homebrew zsh."
+    pass " Shell changed to Homebrew zsh."
   else
     warn "Homebrew zsh is already the default!"
   fi
@@ -84,10 +84,10 @@ configure_zsh_shell() {
 # =========================================================================
 update_homebrew() {
   header "Updating and cleaning Homebrew"
-  run_with_spinner "Updating brew" brew update
-  run_with_spinner "Upgrading brew" brew upgrade
-  run_with_spinner "Upgrading casks" brew upgrade --cask
-  run_with_spinner "Cleaning up" brew cleanup
+  run_with_spinner " Updating brew" brew update
+  run_with_spinner " Upgrading brew" brew upgrade
+  run_with_spinner " Upgrading casks" brew upgrade --cask
+  run_with_spinner " Cleaning up" brew cleanup
 }
 
 # =========================================================================
@@ -99,7 +99,7 @@ install_packages() {
     if brew list --formula | grep -qx "$pkg"; then
       warn "$pkg already installed!"
     else
-      run_with_spinner "Installing $pkg" brew install "$pkg"
+      run_with_spinner " Installing $pkg" brew install "$pkg"
     fi
   done
 }
@@ -111,9 +111,9 @@ install_apps() {
   header "Installing GUI apps"
   for app in "${APPS[@]}"; do
     if brew list --cask | grep -qx "$app"; then
-      warn "$app already installed"
+      warn "$app already installed!"
     else
-     run_with_spinner "Installing $app" brew install --cask "$app"
+     run_with_spinner " Installing $app" brew install --cask "$app"
     fi
   done
 }
@@ -127,5 +127,5 @@ update_homebrew
 install_packages
 install_apps
 
-echo "\n🎉 Brew setup complete!"
+echo "\n🎉 HomeBrew setup complete!\n"
 
