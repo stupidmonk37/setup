@@ -94,14 +94,14 @@ if [[ $work_env == "true" ]]; then
 
     load_base_env
 
-    echo "✅ Loaded $job (work environment)"
+    #echo "✅ Loaded $job (work environment)"
 
 elif [[ $work_env == "false" ]]; then
     [[ -f "$base_dir/.zprompt" ]] && source "$base_dir/.zprompt"
 
     load_base_env
 
-    echo "🏠 Loaded home environment"
+    #echo "🏠 Loaded home environment"
 
 else
     echo "⚠️ Unknown value for work_env: '$work_env' — must be 'true' or 'false'"
