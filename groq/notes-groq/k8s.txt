@@ -69,11 +69,16 @@ kubectl logs -c conductor $POD | egrep "$nova_ncp_reg" -o | sort -uV
 
 
 ######## CONTEXT #########
-# change context
-kubectl config use-context dmm1-prod1.tail15648.ts.net
-
 # add new context for tailscale
 tailscale configure kubeconfig msp2-prod1
+
+# rename context
+kubectl config rename-context dmm1-prod1.tail15648.ts.net dmm1-prod1
+
+# change context
+kubectl config use-context dmm1-prod1.tail15648.ts.net
+# or a custom function:
+k8s-switch
 
 # single rack metadata
 kubectl racks -o json | jq '.items[] | select(.metadata.name=="c1r25")'
