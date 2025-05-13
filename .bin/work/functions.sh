@@ -1,38 +1,25 @@
 #!/usr/bin/env bash
 
-# check geg2 rack power status
-check-rack-power-geg2(){
-    local RACK="$1"
-    [ -z "$RACK" ] && { echo "Please provide rack regex"; return 1; }
-    noglob pdsh -w $RACK-gn[1-9].geg2.groq.com -R ssh sudo ipmitool chassis power status
+kctx() {
+  local context
+  context=$(kubectl config get-contexts -o name | fzf --prompt="K8s Context > ")
+  [[ -n "$context" ]] && kubectl config use-context "$context"
 }
 
-# check geg3 rack power status
-check-rack-power-geg3(){
-    local RACK="$1"
-    [ -z "$RACK" ] && { echo "Please provide rack regex"; return 1; }
-    noglob pdsh -w $RACK-gn[1-9].geg3.groq.net -R ssh sudo ipmitool chassis power status
-}
+k8s-switch() {
+  echo "🔍 Select a Kubernetes context:"
+  local context=$(kubectl config get-contexts -o name | fzf --prompt="Context > ")
+  [[ -z "$context" ]] && echo "❌ No context selected." && return
 
-# check msp1 rack power status
-check-rack-power-msp1(){
-    local RACK="$1"
-    [ -z "$RACK" ] && { echo "Please provide rack regex"; return 1; }
-    noglob pdsh -w $RACK-gn[1-9].msp1.groq.com -R ssh sudo ipmitool chassis power status
-}
+  kubectl config use-context "$context"
 
-# check msp2 rack power status
-check-rack-power-msp2(){
-    local RACK="$1"
-    [ -z "$RACK" ] && { echo "Please provide rack regex"; return 1; }
-    noglob pdsh -w $RACK-gn[1-9].msp2.groq.net -R ssh sudo ipmitool chassis power status
-}
+  echo "📦 Fetching namespaces for context: $context"
+  local namespace=$(kubectl get namespaces -o jsonpath='{.items[*].metadata.name}' 2>/dev/null | tr ' ' '\n' | fzf --prompt="Namespace > ")
+  [[ -z "$namespace" ]] && echo "⚠️ No namespace selected — keeping default." && return
 
-# check dmm1 rack power status
-check-rack-power-dmm1(){
-    local RACK="$1"
-    [ -z "$RACK" ] && { echo "Please provide rack regex"; return 1; }
-    noglob pdsh -w $RACK-gn[1-9].dmm1.groq.net -R ssh sudo ipmitool chassis power status
+  kubectl config set-context --current --namespace="$namespace"
+
+  echo "✅ Switched to context: $context with namespace: $namespace"
 }
 
 # parallel uses single quotes which breaks the shellcheck
@@ -110,68 +97,6 @@ k-tspd() {
                     parallel -j 9 kubectl get pod \
                         -n groq-system \
                         -l app=tspd \
-                        --field-selector spec.nodeName="${rack}-gn{}" \
-                        --no-headers \
-                        -o name
-            )"
-    done
-}
-
-# Get or delete cilium pods from specified racks
-# Note: This is a kube-system pod and you need special permissions to delete it
-# https://groq.slack.com/archives/C06TK3B9RB8/p1738874940045959
-# (ie kc_cilium c1r1 c1r2)
-# (ie kc_cilium delete c1r1 c1r2)
-#kc_cilium() {
-#    local action="get"
-#    local headers="--no-headers"
-#    if [ "$1" = "delete" ]; then
-#        action="delete"
-#        headers=""
-#        shift
-#    fi
-#    local racks=("$@")
-#    [ ${#racks[@]} -eq 0 ] && { echo "Please provide rack names."; return 1; }
-#
-#    for rack in "${racks[@]}"; do
-#        echo "$rack $action cilium pod"
-#        kubectl -n kube-system "$action" $headers \
-#            "$(
-#                echo {1..9} |\
-#                    xargs -n 1 | \
-#                    parallel -j 9 kubectl get pod \
-#                        -n kube-system \
-#                        -l app.kubernetes.io/name=cilium-agent \
-#                        --field-selector spec.nodeName="${rack}-gn{}" \
-#                        --no-headers \
-#                        -o name
-#            )"
-#    done
-#}
-
-# Get or delete bios-conformance pods from specified racks
-# (ie kc_bios_conformance c1r1 c1r2)
-# (ie kc_bios_conformance delete c1r1 c1r2)
-k-bios-conformance() {
-    local action="get"
-    local headers="--no-headers"
-    if [ "$1" = "delete" ]; then
-        action="delete"
-        headers=""
-        shift
-    fi
-    local racks=("$@")
-    [ ${#racks[@]} -eq 0 ] && { echo "Please provide rack names."; return 1; }
-
-    for rack in "${racks[@]}"; do
-        echo "$rack $action bios-conformance pod"
-        kubectl -n groq-system "$action" $headers \
-            "$(
-                echo {1..9} |\
-                    xargs -n 1 | \
-                    parallel -j 9 kubectl get pod \
-                        -n groq-system \
-                        -l app=bios-conformance \
                         --field-selector spec.nodeName="${rack}-gn{}" \
                         --no-headers \
                         -o name
@@ -260,35 +185,6 @@ k-rack-ipmi() {
         ;;
     esac
 }
-# Export the function so it can be used in other scripts
-#export -f k-rack-ipmi
-
-# Get the BIOS version of all nodes
-k-bios-version() {
-    kubectl get node -l groq.node=true -o json | \
-        jq -r '
-            .items[]
-            | [
-                .metadata.name,
-                .metadata.annotations."dmi.bios_version"
-              ]
-            | @tsv' | \
-        sort -V
-}
-
-# Get the board name of all nodes
-# The board_name should always the same throughout the fleet
-#kc_board_name() {
-#    kubectl get node -l groq.node=true -o json | \
-#        jq -r '
-#            .items[]
-#            | [
-#                .metadata.name,
-#                .metadata.annotations."dmi.board_name"
-#              ]
-#            | @tsv' | \
-#        sort -V
-#}
 
 # Open a BMC console for a single node
 # (ie node_console c1r1)
@@ -315,22 +211,6 @@ k-tspd-images() {
         sort -k 2 -r
 }
 
-# Get rack completion status on a per node basis
-# This is also a good example of how to use the custom columns output
-k-racks-complete() {
-    kubectl get nodes \
-      -l "topology.groq.io/server-type=smc-groqnode" \
-      -o custom-columns="$(
-        printf "NODE:.metadata.name,"
-        printf "STATUS:.status.conditions[-1].type,"
-        printf "NODE_C:.metadata.labels.validation\\.groq\\.io\\/node-complete,"
-        printf "RACK_C:.metadata.labels.validation\\.groq\\.io\\/rack-complete,"
-        printf "XRACK_C:.metadata.labels.validation\\.groq\\.io\\/cross-rack-complete,"
-        printf "NODE_AT:.metadata.annotations.validation\\.groq\\.io\\/node-completed-at,"
-        printf "RACK_AT:.metadata.annotations.validation\\.groq\\.io\\/rack-completed-at"
-      ) | sort -V"
-}
-
 # Get Anodizer leases based on the current context
 # (ie get_leases | jq -r 'select(.hostname|test("c1r1")) | [.hostname, .ip] | @tsv'
 k-get-leases() {
@@ -339,59 +219,6 @@ k-get-leases() {
     curl -s "http://anodizer-api.${dc}.groq.net/api/v1/dhcp/leases" | jq '.active[]'
 }
 
-# Only display validated racks with the the 'next' label
-# Requires kubectl-racks version 1.11.0 or higher
-#kc_racks() {
-#    kubectl racks -o \
-#        custom-columns="Rack_Name:metadata.name,Rack_Valid_Date:rackValidatedAt,Next:next"
-#}
-
-# Get allocated racks that are in production
-# We exclude the groq-system namespace (hw validation)
-#kc_allocated() {
-#    kubectl racks -o json | \
-#        jq -r '
-#            .items[]
-#            | select(.allocated==true)
-#            | select(.modelInstanceNamespace|test("^(?!groq-system)"))
-#            | [.metadata.name, .modelInstance] | @tsv' | \
-#        sort -V
-#}
-
-# Prmarily used at the beginning of a power-pod bring-up
-# This will show racks that are ready for hardware validation
-#kc_ready() {
-#    kubectl racks -o json | \
-#        jq -r '
-#            .items
-#            | .[]
-#            | select(.status=="Ready")
-#            | .metadata.name' | \
-#        sort -V
-#}
-
-# Get racks that have at least one node that is NotReady or Missing
-#kc_not_ready() {
-#    kubectl racks -o json | \
-#        jq -r '
-#            .items
-#            | .[]
-#            | select(.status|test("NotReady|NodeMissing"))
-#            | .metadata.name' | \
-#        sort -V
-#}
-
-# Get racks that have at least one node that is cordoned
-#kc_repair() {
-#    kubectl racks -o json | \
-#        jq -r '
-#            .items
-#            | .[]
-#            | select(.status=="Repair")
-#            | .metadata.name' | \
-#        sort -V
-#}
-
 # Get the status of a list of racks
 k-get-racks() {
     local racks=("$@")
@@ -399,14 +226,3 @@ k-get-racks() {
         parallel -j 60 kubectl get nodes -o wide --no-headers -l topology.groq.io/rack="{}" | sort -V
 }
 
-# Get all the pods running on GPCs
-# This is useful to check if the GPCs are running the hw validation pods
-#kc_gpc_pods() {
-#    kubectl get nodes -l topology.groq.io/server-type=dell-gpc -o json | \
-#        jq -r '
-#            .items[].metadata.name' | \
-#        xargs -I {} kubectl get pods -A \
-#            --field-selector spec.nodeName={},status.phase!=Succeeded,status.phase!=Failed \
-#            -o custom-columns=NODE:.spec.nodeName,NAME:.metadata.name | \
-#        sort | uniq
-#}

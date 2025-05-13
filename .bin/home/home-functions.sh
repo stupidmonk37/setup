@@ -4,28 +4,6 @@
 # `tm` will allow you to select your tmux session via fzf.
 # `tm irc` will attach to the irc session (if it exists), else it will create it.
 
-kctx() {
-  local context
-  context=$(kubectl config get-contexts -o name | fzf --prompt="K8s Context > ")
-  [[ -n "$context" ]] && kubectl config use-context "$context"
-}
-
-k8s-switch() {
-  echo "🔍 Select a Kubernetes context:"
-  local context=$(kubectl config get-contexts -o name | fzf --prompt="Context > ")
-  [[ -z "$context" ]] && echo "❌ No context selected." && return
-
-  kubectl config use-context "$context"
-
-  echo "📦 Fetching namespaces for context: $context"
-  local namespace=$(kubectl get namespaces -o jsonpath='{.items[*].metadata.name}' 2>/dev/null | tr ' ' '\n' | fzf --prompt="Namespace > ")
-  [[ -z "$namespace" ]] && echo "⚠️ No namespace selected — keeping default." && return
-
-  kubectl config set-context --current --namespace="$namespace"
-
-  echo "✅ Switched to context: $context with namespace: $namespace"
-}
-
 tw () {
 	[[ -n "$TMUX" ]] && change="switch-client" || change="attach-session"
 

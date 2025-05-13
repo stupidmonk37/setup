@@ -22,12 +22,6 @@ fzf_setup() {
         echo "⚠️ fzf not found! Consider installing via brew install fzf"
     fi
 
-    # fzf-tab
-    #local fzf_tab="$HOME/.fzf-tab"
-    #if [[ ! -d "$fzf_tab" ]]; then
-    #    echo "📦 Installing fzf-tab..."
-    #    git clone https://github.com/Aloxaf/fzf-tab "$fzf_tab"
-    #fi
     source "$HOME/.fzf-tab/fzf-tab.plugin.zsh"
 
     # fzf-tab config
@@ -52,9 +46,6 @@ fzf_setup() {
 }
 
 load_base_env() {
-    # .bin stuff
-    export PATH="$HOME/.bin:$HOME/.local/bin:$PATH"
-
     # Colorful grep
     export GREP_COLORS='1;35;40'
 
@@ -63,9 +54,6 @@ load_base_env() {
 
     # ls command colors
     export LSCOLORS="ExGxxxxxCxxxxxxxxxxxxx"
-
-    # functions for home
-    [[ -f "$HOME/.bin/home-functions.sh" ]] && source "$HOME/.bin/home-functions.sh"
 
     # auto complete
     autoload -Uz compinit
@@ -115,17 +103,16 @@ if [[ $work_env == "true" ]]; then
     for file in "${work_file[@]}"; do
         [[ -f "$work_dir/$file" ]] && source "$work_dir/$file"
     done
-
-    # functions for home
-    [[ -f "$HOME/.bin/functions.sh" ]] && source "$HOME/.bin/functions.sh"
+    
+    export PATH="$HOME/.bin/work:$HOME/.bin/home:$HOME/.local/bin:$PATH"
+    source "$HOME/.bin/work/functions.sh"
+    source "$HOME/.bin/home/home-functions.sh"
 
     load_base_env
 
-    #echo "✅ Loaded $job (work environment)"
-
 elif [[ $work_env == "false" ]]; then
-    #[[ -f "$base_dir/.zprompt" ]] && source "$base_dir/.zprompt"
-
+    export PATH="$HOME/.bin/home:$HOME/.local/bin:$PATH"
+    source "$HOME/.bin/home/home-functions.sh"
     load_base_env
 
 else
