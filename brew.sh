@@ -18,7 +18,7 @@ WORK_APPS=()
 # =========================================================================
 warn() { echo "     ⚠️  $1"; }
 fail() { echo "     ❌ $1"; }
-pass() { echo "     ✅ $1"; }
+pass() { echo "     ✅  $1"; }
 header() { print "\n🛠️ $1"; }
 
 spinner() {
@@ -76,7 +76,7 @@ configure_zsh_shell() {
       run_with_spinner "Adding $BREW_ZSH to allowed shells" echo "$BREW_ZSH" | sudo tee -a /etc/shells > /dev/null
     fi
     chsh -s "$BREW_ZSH"
-    pass " Shell changed to Homebrew zsh."
+    pass "Shell changed to Homebrew zsh."
   else
     warn "Homebrew zsh is already the default!"
   fi

@@ -15,8 +15,7 @@ GRUVBOX_PATH="$DOTFILE_DIR/.vim/colors/gruvbox.vim"
 # ==========================================================================
 warn() { echo "     ⚠️  $1"; }
 fail() { echo "     ❌ $1"; }
-pass() { echo "     ✅ $1"; }
-#divider() { print "\n------------------------------\n"; }
+pass() { echo "     ✅  $1"; }
 header() { print "\n🛠️  $1"; }
 
 #spinner() {
@@ -90,7 +89,7 @@ symlink_setup() {
 install_vim_theme() {
     header "Installing gruvbox theme for Vim/Bat"
     if curl -fLo "$GRUVBOX_PATH" --create-dirs "$GRUVBOX_URL" &> /dev/null; then
-        pass " Gruvbox theme installed!"
+        pass "Gruvbox theme installed!"
     else
         fail "Could not download gruvbox — check internet or URL."
     fi
@@ -117,7 +116,7 @@ install_fzf_tab() {
     if [[ ! -d "$fzf_tab" ]]; then
         header "Installing fzf-tab..."
         git clone https://github.com/Aloxaf/fzf-tab "$fzf_tab"
-        pass " fzf-tab installed!"
+        pass "fzf-tab installed!"
     fi
 }
 
