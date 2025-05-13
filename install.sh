@@ -6,7 +6,7 @@ set -e
 # =====[ variables ]========================================================
 # ==========================================================================
 DOTFILE_DIR="$HOME/git/setup"
-FILES=(.vim .vimrc .zshrc .zprofile .zprompt .aliases .bin .tmux.conf)
+FILES=(.vim .vimrc .zshrc .zprofile .zprompt .aliases .bin .tmux.conf .p10k.zsh)
 GRUVBOX_URL="https://raw.githubusercontent.com/morhetz/gruvbox/master/colors/gruvbox.vim"
 GRUVBOX_PATH="$DOTFILE_DIR/.vim/colors/gruvbox.vim"
 
@@ -19,7 +19,32 @@ pass() { echo "     ✅ $1"; }
 #divider() { print "\n------------------------------\n"; }
 header() { print "\n🛠️  $1"; }
 
-spinner() {
+#spinner() {
+#  local pid=$!
+#  local spin='-\|/'
+#  local i=0
+#  while kill -0 $pid 2>/dev/null; do
+#    i=$(( (i + 1) % 4 ))
+#    printf " \r     %s" "${spin:$i:1}"
+#    sleep 0.1
+#  done
+#  printf "\r     ✅\n"
+#}
+
+run_with_spinner_69() {
+  local msg="$1"
+  shift
+  echo -n "        $msg..."
+  "$@" &> /dev/null &
+  spinner
+}
+
+run_with_spinner() {
+  local msg="$1"
+  shift
+  echo -n "        $msg..."
+
+  "$@" &> /dev/null &
   local pid=$!
   local spin='-\|/'
   local i=0
@@ -28,15 +53,13 @@ spinner() {
     printf " \r     %s" "${spin:$i:1}"
     sleep 0.1
   done
-  printf "\r     ✅\n"
-}
-
-run_with_spinner() {
-  local msg="$1"
-  shift
-  echo -n "        $msg..."
-  "$@" &> /dev/null &
-  spinner
+  wait $pid
+  local exit_status=$?
+  if [ $exit_status -eq 0 ]; then
+    printf "\r     ✅\n"
+  else
+    printf "\r     ❌ Command failed\n"
+  fi
 }
 
 # ==========================================================================
@@ -56,7 +79,7 @@ symlink_setup() {
         if [[ -L "$dest" && "$(readlink "$dest")" == "$src" ]]; then
             warn "$file already linked"
         else
-            ln -sf "$src" "$dest" && echo "     ✅ Linked $file"
+            ln -sf "$src" "$dest" && pass " Linked $file"
         fi
     done
 }
@@ -78,10 +101,11 @@ install_vim_theme() {
 # ==========================================================================
 run_brew() {
     header "Running Homebrew setup..."
-    if [[ -x "./brew.sh" ]]; then
-        ./brew.sh
+    brew_script="${DOTFILE_DIR}/brew.sh"
+    if [[ -x "$brew_script" ]]; then
+        "$brew_script"
     else
-        warn "brew.sh not found or not executable."
+        warn "brew.sh not found or not executable at $brew_script"
     fi
 }
 
