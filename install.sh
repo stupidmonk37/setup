@@ -18,26 +18,6 @@ fail() { echo "     ❌ $1"; }
 pass() { echo "     ✅  $1"; }
 header() { print "\n🛠️  $1"; }
 
-#spinner() {
-#  local pid=$!
-#  local spin='-\|/'
-#  local i=0
-#  while kill -0 $pid 2>/dev/null; do
-#    i=$(( (i + 1) % 4 ))
-#    printf " \r     %s" "${spin:$i:1}"
-#    sleep 0.1
-#  done
-#  printf "\r     ✅\n"
-#}
-
-run_with_spinner_69() {
-  local msg="$1"
-  shift
-  echo -n "        $msg..."
-  "$@" &> /dev/null &
-  spinner
-}
-
 run_with_spinner() {
   local msg="$1"
   shift
@@ -96,6 +76,18 @@ install_vim_theme() {
 }
 
 # ==========================================================================
+# =====[ install fzf-tab ]==================================================
+# ==========================================================================
+install_fzf_tab() {
+    fzf_tab="$HOME/.fzf-tab"
+    if [[ ! -d "$fzf_tab" ]]; then
+        header "Installing fzf-tab..."
+        run_with_spinner "Cloning fzf-tab" git clone https://github.com/Aloxaf/fzf-tab "$fzf_tab"
+        pass "fzf-tab installed!"
+    fi
+}
+
+# ==========================================================================
 # =====[ run brew.sh ]======================================================
 # ==========================================================================
 run_brew() {
@@ -109,24 +101,11 @@ run_brew() {
 }
 
 # ==========================================================================
-# =====[ install fzf-tab ]==================================================
-# ==========================================================================
-install_fzf_tab() {
-    fzf_tab="$HOME/.fzf-tab"
-    if [[ ! -d "$fzf_tab" ]]; then
-        header "Installing fzf-tab..."
-        git clone https://github.com/Aloxaf/fzf-tab "$fzf_tab"
-        pass "fzf-tab installed!"
-    fi
-}
-
-# ==========================================================================
 # =====[ all done ]=========================================================
 # ==========================================================================
 print_done() {
     pass "Installation Complete!"
-    echo ""
-    echo "🧼 Reloading shell..."
+    header  "🧼 Reloading shell..."
     exec zsh
 }
 

@@ -23,12 +23,12 @@ fzf_setup() {
     fi
 
     # fzf-tab
-    local fzf_tab="$HOME/.fzf-tab"
-    if [[ ! -d "$fzf_tab" ]]; then
-        echo "📦 Installing fzf-tab..."
-        git clone https://github.com/Aloxaf/fzf-tab "$fzf_tab"
-    fi
-    source "$fzf_tab/fzf-tab.plugin.zsh"
+    #local fzf_tab="$HOME/.fzf-tab"
+    #if [[ ! -d "$fzf_tab" ]]; then
+    #    echo "📦 Installing fzf-tab..."
+    #    git clone https://github.com/Aloxaf/fzf-tab "$fzf_tab"
+    #fi
+    source "$HOME/.fzf-tab/fzf-tab.plugin.zsh"
 
     # fzf-tab config
     zstyle ':completion:*:descriptions' format '[%d]'
@@ -93,9 +93,6 @@ load_base_env() {
 
     if type brew &>/dev/null; then
         FPATH=$(brew --prefix)/share/zsh-completions:$FPATH
-
-    autoload -Uz compinit
-    compinit
     fi
     
     HISTFILE=~/.zsh_history
