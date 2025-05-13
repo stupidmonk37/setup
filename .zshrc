@@ -1,6 +1,13 @@
+# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+# Initialization code that may require console input (password prompts, [y/n]
+# confirmations, etc.) must go above this block; everything else may go below.
+#if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+#  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+#fi
+
 # Set your environment
 # work_env=true(work setup) or work_env=false(home setup)
-work_env=true
+work_env=false
 job=groq
 base_file=(.aliases .tmux.conf .vimrc .zprofile)
 base_dir="$HOME/git/setup"
@@ -81,6 +88,29 @@ load_base_env() {
         [[ -r "$base_dir/$file" ]] && [[ -f "$base_dir/$file" ]] && source "$base_dir/$file" 2>/dev/null
     done
     unset file
+
+    source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+
+    if type brew &>/dev/null; then
+        FPATH=$(brew --prefix)/share/zsh-completions:$FPATH
+
+    autoload -Uz compinit
+    compinit
+    fi
+    
+    HISTFILE=~/.zsh_history
+    HISTSIZE=10000
+    SAVEHIST=10000
+    setopt INC_APPEND_HISTORY SHARE_HISTORY
+    
+    # If you receive "zsh compinit: insecure directories" warnings when attempting
+    # to load these completions, you may need to run these commands:
+    #chmod go-w '/opt/homebrew/share'
+    #chmod -R go-w '/opt/homebrew/share/zsh'
+
+    # To configure todo-txt, copy the default config to your HOME and edit it:
+    #cp /opt/homebrew/Cellar/todo-txt/2.13.0/todo.cfg ~/.todo.cfg
+
 }
 
 # Load dotfiles based on environment
@@ -108,3 +138,9 @@ else
 fi
 
 
+source /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme
+
+source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+
+# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh

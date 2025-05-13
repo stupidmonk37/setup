@@ -3,7 +3,7 @@
 set -e
 
 # ==========================================================================
-# variables
+# =====[ variables ]========================================================
 # ==========================================================================
 DOTFILE_DIR="$HOME/git/setup"
 FILES=(.vim .vimrc .zshrc .zprofile .zprompt .aliases .bin .tmux.conf)
@@ -11,7 +11,7 @@ GRUVBOX_URL="https://raw.githubusercontent.com/morhetz/gruvbox/master/colors/gru
 GRUVBOX_PATH="$DOTFILE_DIR/.vim/colors/gruvbox.vim"
 
 # ==========================================================================
-# helpful functions
+# =====[ helpful functions ]================================================
 # ==========================================================================
 warn() { echo "     ⚠️  $1"; }
 fail() { echo "     ❌ $1"; }
@@ -40,7 +40,7 @@ run_with_spinner() {
 }
 
 # ==========================================================================
-# symlink setup
+# =====[ symlink setup ]====================================================
 # ==========================================================================
 symlink_setup() {
     header "Linking dotfiles from ~/git/setup → ~/"
@@ -62,7 +62,7 @@ symlink_setup() {
 }
 
 # ==========================================================================
-# install vim/bat theme
+# =====[ install vim/bat theme ]============================================
 # ==========================================================================
 install_vim_theme() {
     header "Installing gruvbox theme for Vim/Bat"
@@ -74,10 +74,10 @@ install_vim_theme() {
 }
 
 # ==========================================================================
-# run brew.sh
+# =====[ run brew.sh ]======================================================
 # ==========================================================================
 run_brew() {
-    header "Running Homebrew setup"
+    header "Running Homebrew setup..."
     if [[ -x "./brew.sh" ]]; then
         ./brew.sh
     else
@@ -86,28 +86,29 @@ run_brew() {
 }
 
 # ==========================================================================
-# install fzf-tab
+# =====[ install fzf-tab ]==================================================
 # ==========================================================================
 install_fzf_tab() {
     fzf_tab="$HOME/.fzf-tab"
     if [[ ! -d "$fzf_tab" ]]; then
-        echo "📦 Installing fzf-tab..."
+        header "Installing fzf-tab..."
         git clone https://github.com/Aloxaf/fzf-tab "$fzf_tab"
+        pass " fzf-tab installed!"
     fi
 }
 
 # ==========================================================================
-# all done
+# =====[ all done ]=========================================================
 # ==========================================================================
 print_done() {
-    echo "✅ Installation Complete!"
+    pass "Installation Complete!"
     echo ""
     echo "🧼 Reloading shell..."
     exec zsh
 }
 
 # ==========================================================================
-# main script
+# =====[ main script ]======================================================
 # ==========================================================================
 symlink_setup
 install_vim_theme
