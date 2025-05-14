@@ -10,8 +10,8 @@ KUBE_PS1_SYMBOL_ENABLE='false'
 KUBE_PS1_SEPARATOR=''
 
 # work prompt
-PROMPT='%(?.%F{green}⏺.%F{red}⏺)%f %2~/ $(kube_ps1)> '
-RPROMPT="%t"
+#PROMPT='%(?.%F{green}⏺.%F{red}⏺)%f %2~/ $(kube_ps1)> '
+#RPROMPT="%t"
 
 # original prompt
 #PROMPT='%n@%m %1~ %# '
