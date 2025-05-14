@@ -8,9 +8,9 @@ sudo -v
 # =====[ variables ]=======================================================
 # =========================================================================
 work_env=false
-HOME_PACKAGES=(bash zsh tree watch tmux bat fzf powerlevel10k todo-txt zsh-autosuggestions zsh-syntax-highlighting zsh-completions)
-WORK_PACKAGES=(kube-ps1 k9s)
-HOME_APPS=(sublime-text visual-studio-code rectangle chatgpt iterm2 font-meslo-lg-nerd-font)
+HOME_PACKAGES=(yq bash zsh tree watch tmux bat fzf powerlevel10k todo-txt pipx zsh-autosuggestions zsh-syntax-highlighting zsh-completions)
+WORK_PACKAGES=(kube-ps1 k9s ipmitool pdsh)
+HOME_APPS=(sublime-text visual-studio-code rectangle chatgpt iterm2 font-meslo-for-powerlevel10k font-symbols-only-nerd-font)
 WORK_APPS=()
 
 # =========================================================================
@@ -42,9 +42,9 @@ run_with_spinner() {
 }
 
 # =========================================================================
-# =====[ install homebrew if needed ]=====================================
+# =====[ install homebrew ]================================================
 # =========================================================================
-install_brew_if_needed() {
+install_brew() {
   header "Checking if Homebrew is installed"
   if ! command -v brew &>/dev/null; then
     run_with_spinner "Installing Homebrew" /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -140,7 +140,7 @@ install_apps() {
 # =========================================================================
 # =====[ main script ]=====================================================
 # =========================================================================
-install_brew_if_needed
+install_brew
 configure_zsh_shell
 update_homebrew
 install_packages
