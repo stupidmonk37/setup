@@ -127,315 +127,26 @@ kval-status() {
   eval "$cmd"
 }
 
-gv_info() {
-  local compact=0
-  local targets=()
-
-  while [[ "$1" =~ ^- ]]; do
-    case "$1" in
-      -c|--compact) compact=1 ;;
-    esac
-    shift
-  done
-
-  targets=("$@")
-
-  run_gv() {
-    local target="$1"
-
-    output=$(kc describe gv "$target" 2>/dev/null)
-    if [[ -z "$output" ]]; then
-      if [[ "$compact" -eq 1 ]]; then
-        printf "%-15s : \033[31mNOT FOUND\033[0m\n" "$target"
-      else
-        echo -e "\033[31mError:\033[0m Target '$target' not found."
-      fi
-      return
-    fi
-
-    echo "$output" | awk -v compact="$compact" -v target="$target" '
-      BEGIN {
-        status_keys = "groq-sweep-xt4444-8c:|Mcu:|Missing - Optics:|Pcie:|Single - Chip:|Single - Node - Link:|Single - Node - Link - Sweep:"
-        separator = "======================================"
-
-        COLOR_GREEN  = "\033[32m"
-        COLOR_RED    = "\033[31m"
-        COLOR_YELLOW = "\033[33m"
-        COLOR_BLUE   = "\033[34m"
-        COLOR_ORANGE = "\033[38;5;208m"
-        COLOR_RESET  = "\033[0m"
-
-        in_status = 0
-        printed_any = 0
-        name_count = 0
-        all_success = 1
-      }
-
-      /^Status:/       { in_status = 1 }
-      /^Events:/       { in_status = 0 }
-
-      in_status && $0 ~ status_keys {
-        status_line = $0
-        countdown = 6
-      }
-
-      /Name:/ {
-        if (compact == 0 && printed_any) print separator
-        printed_any = 1
-
-        name_count++
-        split($0, parts, ":")
-        gsub(/^[ \t]+/, "", parts[1])
-        gsub(/^[ \t]+/, "", parts[2])
-        if (compact == 0)
-          printf "%-30s %s%s%s\n", parts[1] ":", COLOR_ORANGE, parts[2], COLOR_RESET
-      }
-
-      in_status && countdown == 1 {
-        gsub(/Status:/, "", status_line)
-        gsub(/Status:/, "", $0)
-        sub(/^[ \t]+/, "", status_line)
-        sub(/^[ \t]+/, "", $0)
-
-        if ($0 ~ /success/) {
-          gsub(/success/, COLOR_GREEN "&" COLOR_RESET)
-        } else if ($0 ~ /fail|error/) {
-          gsub(/(fail|error)/, COLOR_RED "&" COLOR_RESET)
-          all_success = 0
-        } else if ($0 ~ /in[- ]?progress|running/) {
-          gsub(/(in[- ]?progress|running)/, COLOR_YELLOW "&" COLOR_RESET)
-          all_success = 0
-        } else if ($0 ~ /pending|waiting/) {
-          gsub(/(pending|waiting)/, COLOR_BLUE "&" COLOR_RESET)
-          all_success = 0
-        }
-
-        if (compact == 0)
-          printf "%-30s %s\n", status_line, $0
-      }
-
-      in_status && countdown > 0 { countdown-- }
-
-      END {
-        if (compact == 0 && printed_any) print separator
-        if (compact == 1) {
-          result = (all_success ? COLOR_GREEN "OK" : COLOR_RED "FAIL") COLOR_RESET
-          printf "%-15s : %s\n", target, result
-        }
-      }
-    '
-  }
-
-  for tgt in "${targets[@]}"; do
-    run_gv "$tgt"
-  done
+kctx() {
+  local context
+  context=$(kubectl config get-contexts -o name | fzf --prompt="K8s Context > ")
+  [[ -n "$context" ]] && kubectl config use-context "$context"
 }
 
-gv_info1() {
-  local compact=0
-  local targets=()
+k8s-switch() {
+  echo "🔍 Select a Kubernetes context:"
+  local context=$(kubectl config get-contexts -o name | fzf --prompt="Context > ")
+  [[ -z "$context" ]] && echo "❌ No context selected." && return
 
-  while [[ "$1" =~ ^- ]]; do
-    case "$1" in
-      -c|--compact) compact=1 ;;
-    esac
-    shift
-  done
+  kubectl config use-context "$context"
 
-  targets=("$@")
+  echo "📦 Fetching namespaces for context: $context"
+  local namespace=$(kubectl get namespaces -o jsonpath='{.items[*].metadata.name}' 2>/dev/null | tr ' ' '\n' | fzf --prompt="Namespace > ")
+  [[ -z "$namespace" ]] && echo "⚠️ No namespace selected — keeping default." && return
 
-  run_gv() {
-    local target="$1"
+  kubectl config set-context --current --namespace="$namespace"
 
-    output=$(kc describe gv "$target" 2>/dev/null)
-    if [[ -z "$output" ]]; then
-      if [[ "$compact" -eq 1 ]]; then
-        printf "%-15s : \033[31mNOT FOUND\033[0m\n" "$target"
-      else
-        echo -e "\033[31mError:\033[0m Target '$target' not found."
-      fi
-      return
-    fi
-
-    echo "$output" | awk -v compact="$compact" -v target="$target" '
-      BEGIN {
-        status_keys = "groq-sweep-xt4444-8c:|Mcu:|Missing - Optics:|Pcie:|Single - Chip:|Single - Node - Link:|Single - Node - Link - Sweep:"
-        separator = "======================================"
-
-        COLOR_GREEN  = "\033[32m"
-        COLOR_RED    = "\033[31m"
-        COLOR_YELLOW = "\033[33m"
-        COLOR_BLUE   = "\033[34m"
-        COLOR_ORANGE = "\033[38;5;208m"
-        COLOR_RESET  = "\033[0m"
-
-        in_status = 0
-        name_count = 0
-        all_success = 1
-      }
-
-      /^Status:/       { in_status = 1 }
-      /^Events:/       { in_status = 0 }
-
-      in_status && $0 ~ status_keys {
-        status_line = $0
-        countdown = 6
-      }
-
-      /Name:/ {
-        name_count++
-        if (compact == 0 && name_count == 1) print separator
-        if (name_count == 1 || (name_count - 1) % 8 == 0) {
-          split($0, parts, ":")
-          gsub(/^[ \t]+/, "", parts[1])
-          gsub(/^[ \t]+/, "", parts[2])
-          if (compact == 0)
-            printf "%-30s %s%s%s\n", parts[1] ":", COLOR_ORANGE, parts[2], COLOR_RESET
-        }
-      }
-
-      in_status && countdown == 1 {
-        gsub(/Status:/, "", status_line)
-        gsub(/Status:/, "", $0)
-        sub(/^[ \t]+/, "", status_line)
-        sub(/^[ \t]+/, "", $0)
-
-        if ($0 ~ /success/) {
-          gsub(/success/, COLOR_GREEN "&" COLOR_RESET)
-        } else if ($0 ~ /fail|error/) {
-          gsub(/(fail|error)/, COLOR_RED "&" COLOR_RESET)
-          all_success = 0
-        } else if ($0 ~ /in[- ]?progress|running/) {
-          gsub(/(in[- ]?progress|running)/, COLOR_YELLOW "&" COLOR_RESET)
-          all_success = 0
-        } else if ($0 ~ /pending|waiting/) {
-          gsub(/(pending|waiting)/, COLOR_BLUE "&" COLOR_RESET)
-          all_success = 0
-        }
-
-        if (compact == 0)
-          printf "%-30s %s\n", status_line, $0
-
-        if (status_line ~ /Single - Node - Link - Sweep:/ && compact == 0)
-          print separator
-      }
-
-      in_status && countdown > 0 { countdown-- }
-
-      END {
-        if (compact == 1) {
-          result = (all_success ? COLOR_GREEN "OK" : COLOR_RED "FAIL") COLOR_RESET
-          printf "%-15s : %s\n", target, result
-        }
-      }
-    '
-  }
-
-  for target in "${targets[@]}"; do
-    run_gv "$target"
-  done
-}
-
-gv_status() {
-  local compact=0
-  local targets=()
-
-  while [[ "$1" =~ ^- ]]; do
-    case "$1" in
-      -c|--compact) compact=1 ;;
-    esac
-    shift
-  done
-
-  targets=("$@")
-
-  run_gv() {
-    local target="$1"
-
-    # Try to fetch data, handle errors gracefully
-    output=$(kc describe gv "$target" 2>/dev/null)
-    if [[ -z "$output" ]]; then
-      if [[ "$compact" -eq 1 ]]; then
-        printf "%-15s : \033[31mNOT FOUND\033[0m\n" "$target"
-      else
-        echo -e "\033[31mError:\033[0m Target '$target' not found."
-      fi
-      return
-    fi
-
-    echo "$output" | awk -v compact="$compact" -v target="$target" '
-      BEGIN {
-        status_keys = "groq-sweep-xt4444-8c:|Mcu:|Missing - Optics:|Pcie:|Single - Chip:|Single - Node - Link:|Single - Node - Link - Sweep:"
-        separator = "======================================"
-
-        COLOR_GREEN  = "\033[32m"
-        COLOR_RED    = "\033[31m"
-        COLOR_YELLOW = "\033[33m"
-        COLOR_BLUE   = "\033[34m"
-        COLOR_ORANGE = "\033[38;5;208m"
-        COLOR_RESET  = "\033[0m"
-
-        name_count = 0
-        all_success = 1
-      }
-
-      $0 ~ status_keys {
-        status_line = $0
-        countdown = 6
-      }
-
-      /Name:/ {
-        name_count++
-        if (compact == 0 && name_count == 1) print separator
-        if (name_count == 1 || (name_count - 1) % 8 == 0) {
-          split($0, parts, ":")
-          gsub(/^[ \t]+/, "", parts[1])
-          gsub(/^[ \t]+/, "", parts[2])
-          if (compact == 0)
-            printf "%-30s %s%s%s\n", parts[1] ":", COLOR_ORANGE, parts[2], COLOR_RESET
-        }
-      }
-
-      countdown == 1 {
-        gsub(/Status:/, "", status_line)
-        gsub(/Status:/, "", $0)
-        sub(/^[ \t]+/, "", status_line)
-        sub(/^[ \t]+/, "", $0)
-
-        if ($0 ~ /success/) {
-          gsub(/success/, COLOR_GREEN "&" COLOR_RESET)
-        } else if ($0 ~ /fail|error/) {
-          gsub(/(fail|error)/, COLOR_RED "&" COLOR_RESET)
-          all_success = 0
-        } else if ($0 ~ /in[- ]?progress|running/) {
-          gsub(/(in[- ]?progress|running)/, COLOR_YELLOW "&" COLOR_RESET)
-          all_success = 0
-        } else if ($0 ~ /pending|waiting/) {
-          gsub(/(pending|waiting)/, COLOR_BLUE "&" COLOR_RESET)
-          all_success = 0
-        }
-
-        if (compact == 0)
-          printf "%-30s %s\n", status_line, $0
-
-        if (status_line ~ /Single - Node - Link - Sweep:/ && compact == 0)
-          print separator
-      }
-
-      countdown > 0 { countdown-- }
-
-      END {
-        if (compact == 1) {
-          result = (all_success ? COLOR_GREEN "OK" : COLOR_RED "FAIL") COLOR_RESET
-          printf "%-15s : %s\n", target, result
-        }
-      }
-    '
-  }
-
-  for target in "${targets[@]}"; do
-    run_gv "$target"
-  done
+  echo "✅ Switched to context: $context with namespace: $namespace"
 }
 
 knodes() {
@@ -657,3 +368,31 @@ kracks-ipmi() {
 #
 #    ipmiconsole -h "$fqdn" -u root -p GroqRocks1
 #}
+
+# Get the tspd image versions of all nodes
+# All nodes should be running the same tspd image
+k-tspd-images() {
+    kc get pods -l app=tspd -o json | \
+        jq -r '
+            .items[]
+            | [.spec.nodeName, (
+                [.status.containerStatuses[]
+                | select(.name == "agent")][0].imageID)]
+                | @tsv' | \
+        sort -k 2 -r
+}
+
+# Get Anodizer leases based on the current context
+# (ie get_leases | jq -r 'select(.hostname|test("c1r1")) | [.hostname, .ip] | @tsv'
+k-get-leases() {
+    kc_context="$(kubectl config current-context)"
+    dc="${dc:-${kc_context%-*}}"
+    curl -s "http://anodizer-api.${dc}.groq.net/api/v1/dhcp/leases" | jq '.active[]'
+}
+
+# Get the status of a list of racks
+k-get-racks() {
+    local racks=("$@")
+    echo "${racks[@]}" | xargs -n 1 | \
+        parallel -j 60 kubectl get nodes -o wide --no-headers -l topology.groq.io/rack="{}" | sort -V
+}

@@ -1,9 +1,9 @@
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
 # confirmations, etc.) must go above this block; everything else may go below.
-#if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-#  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-#fi
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
 
 # Set your environment
 # work_env=true(work setup) or work_env=false(home setup)
@@ -22,13 +22,7 @@ fzf_setup() {
         echo "⚠️ fzf not found! Consider installing via brew install fzf"
     fi
 
-    # fzf-tab
-    local fzf_tab="$HOME/.fzf-tab"
-    if [[ ! -d "$fzf_tab" ]]; then
-        echo "📦 Installing fzf-tab..."
-        git clone https://github.com/Aloxaf/fzf-tab "$fzf_tab"
-    fi
-    source "$fzf_tab/fzf-tab.plugin.zsh"
+    source "$HOME/.fzf-tab/fzf-tab.plugin.zsh"
 
     # fzf-tab config
     zstyle ':completion:*:descriptions' format '[%d]'
@@ -52,9 +46,6 @@ fzf_setup() {
 }
 
 load_base_env() {
-    # .bin stuff
-    export PATH="$HOME/.bin:$HOME/.local/bin:$PATH"
-
     # Colorful grep
     export GREP_COLORS='1;35;40'
 
@@ -63,9 +54,6 @@ load_base_env() {
 
     # ls command colors
     export LSCOLORS="ExGxxxxxCxxxxxxxxxxxxx"
-
-    # functions for home
-    [[ -f "$HOME/.bin/home-functions.sh" ]] && source "$HOME/.bin/home-functions.sh"
 
     # auto complete
     autoload -Uz compinit
@@ -93,9 +81,6 @@ load_base_env() {
 
     if type brew &>/dev/null; then
         FPATH=$(brew --prefix)/share/zsh-completions:$FPATH
-
-    autoload -Uz compinit
-    compinit
     fi
     
     HISTFILE=~/.zsh_history
@@ -118,20 +103,17 @@ if [[ $work_env == "true" ]]; then
     for file in "${work_file[@]}"; do
         [[ -f "$work_dir/$file" ]] && source "$work_dir/$file"
     done
-
-    # functions for home
-    [[ -f "$HOME/.bin/functions.sh" ]] && source "$HOME/.bin/functions.sh"
+    
+    export PATH="$HOME/.bin/work:$HOME/.bin/home:$HOME/.local/bin:$PATH"
+    source "$HOME/.bin/work/functions.sh"
+    source "$HOME/.bin/home/home-functions.sh"
 
     load_base_env
-
-    #echo "✅ Loaded $job (work environment)"
 
 elif [[ $work_env == "false" ]]; then
-    [[ -f "$base_dir/.zprompt" ]] && source "$base_dir/.zprompt"
-
+    export PATH="$HOME/.bin/home:$HOME/.local/bin:$PATH"
+    source "$HOME/.bin/home/home-functions.sh"
     load_base_env
-
-    #echo "🏠 Loaded home environment"
 
 else
     echo "⚠️ Unknown value for work_env: '$work_env' — must be 'true' or 'false'"
