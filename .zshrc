@@ -5,8 +5,8 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
-# Set your environment
-# work_env=true(work setup) or work_env=false(home setup)
+export PATH="$HOME/.bin/:$HOME/.local/bin:$PATH"
+
 work_env=false
 job=groq
 base_file=(.aliases .tmux.conf .vimrc .zprofile)
@@ -78,6 +78,14 @@ load_base_env() {
     unset file
 
     source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+    source /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme
+    source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+    
+    source "$HOME/.bin/home-functions.sh"
+
+    # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
+    [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
 
     if type brew &>/dev/null; then
         FPATH=$(brew --prefix)/share/zsh-completions:$FPATH
@@ -99,30 +107,20 @@ load_base_env() {
 }
 
 # Load dotfiles based on environment
-if [[ $work_env == "true" ]]; then
+if $work_env ; then
     for file in "${work_file[@]}"; do
         [[ -f "$work_dir/$file" ]] && source "$work_dir/$file"
     done
-    
-    export PATH="$HOME/.bin/work:$HOME/.bin/home:$HOME/.local/bin:$PATH"
-    source "$HOME/.bin/work/functions.sh"
-    source "$HOME/.bin/home/home-functions.sh"
+     
+     export PATH="$HOME/.bin/work:$PATH"
+     source "$HOME/.bin/work/functions-$job.sh"
 
     load_base_env
 
-elif [[ $work_env == "false" ]]; then
-    export PATH="$HOME/.bin/home:$HOME/.local/bin:$PATH"
-    source "$HOME/.bin/home/home-functions.sh"
+elif ! $work_env ; then
     load_base_env
 
 else
     echo "⚠️ Unknown value for work_env: '$work_env' — must be 'true' or 'false'"
 fi
 
-
-#source /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme
-
-source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-
-# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
-#[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
