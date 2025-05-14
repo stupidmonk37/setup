@@ -29,9 +29,64 @@ kubectl-check-racks <rack> <rack> <rack>
 ./run.sh -t xt <rack> 
 
 
+###############################################################################
+##### Function Explainations ##################################################
+###############################################################################
 
+# check rack status
+Usage: kcheck <rack1> [rack2] [...]     # list all information for specific racks
 
+# check node status
+Usage: knodes <rack1> [rack2] [...]     # list specific rack node information
 
+# check racks
+Usage: kracks --all                     # list information for ALL racks
+       kracks <rack1> [rack2] [...]     # list information for specific racks
+
+# check validation status
+Usage: kval-status --all                            # list validation status for all nodes in cluster
+       kval-status --racks <rack> [rack2] [...]     # list validation status for all nodes in specific racks
+       kval-status --only-failed                    # list only failed validation attempts
+
+##############################################################################
+##### Workflow... I think ####################################################
+##############################################################################
+
+# enter k8s mode
+kubeon
+
+# get to right context and namespace
+k8s-switch
+
+# make sure all nodes are up
+kracks <rack> # or kracks c1r{1..5} c1r7
+
+# on any rack that isn't healthy, find the missing nodes
+knodes <rack> [rack2] [...]
+
+##### fix the missing / unhealthy nodes #####
+
+# check validation status
+kval-status --racks <rack> [rack2] [...]
+
+# find failed attempts only
+kval-status --only-failed
+
+# create ticket
+THIS NEEDS TO BE LOOKED INTO USING KUBECTL REPAIR
+
+# retry validation (TURN THIS INTO A FUNCTION)
+    # retry from point of failure
+    kubectl validation retry --node <rack-node>
+
+    # removes existing validation from node, rack and xrk - It's like starting validation over
+    kubectl validation requalify --node <rack-node>
+
+# make sure everything passes
+kval-status --racks <rack> [rack2] [...]
+
+# check source of truth
+kracks <rack> [rack2] [...]
 
 ###############################################################################
 ####### CMDS ##################################################################
@@ -42,7 +97,6 @@ kubectl describe gv (c1r1-gn1, c1r1, c1r1-c1r2)
 kubectl validation status
 kubectl validation status --nodes c1r3-gn3
 kubectl validation status --racks c1r3
-kubectl validation status --rack c1r2
 kubectl validation status --only-failed
 kubectl validation status --manual-runs manual-cholman-20250416122314
 
@@ -58,10 +112,6 @@ kubectl validation requalify --node c1r2-gn5
 
 kubectl validation manual --nodes c1r3-gn1 --validator node-validation-2
 
-kubectl validation retry --validation c0r10-c0r11
-kubectl validation retry --validation c0r7-gn1 # retry failing tests
-kubectl validation retry --validation c0r7-gn1 --from-start # retry all tests
-kubectl validation retry --node c1r2-gn5
 kubectl validation retry --manual-run cholman-c1r2-2025-03-26-1234
 
 kc get gv | grep c0r10

@@ -95,13 +95,13 @@ tkill () {
 
 fvfind() {
   local file
-  file=$(fzf-tmux --exact -p 80%,60% --preview 'bat --theme="gruvbox" --plain --color=always {}' --preview-window=right:50%)
+  file=$(fzf-tmux --exact -p 80%,60% --preview 'bat --theme="gruvbox" --style=plain --color=always {}' --preview-window=right:50%)
   [ -n "$file" ] && vim "$file"
 }
 
 fbfind() {
   local file
-  file=$(fzf-tmux --exact -p 80%,60% --preview 'bat --theme="gruvbox-dark" --plain --color=always {}' --preview-window=right:50%)
+  file=$(fzf-tmux --exact -p 80%,60% --preview 'bat --theme="gruvbox-dark" --style=plain --color=always {}' --preview-window=right:50%)
   [ -n "$file" ] && bat --theme="gruvbox-dark" --plain --color=always "$file"
 }
 
@@ -119,6 +119,6 @@ fh() {
 }
 
 fnotes() {
-  bat --theme="gruvbox-dark" --plain "$(find ~/git/setup/groq/notes-groq -type f 2> /dev/null | fzf-tmux --exact -p 70%,50% --preview 'bat --theme="gruvbox-dark" --plain --color=always --style=numbers {}' --preview-window=right:50%)"
+  bat --theme="gruvbox-dark" --style=plain "$(find ~/git/setup/groq/notes-groq -type f 2> /dev/null | fzf-tmux --exact -p 70%,50% --preview 'bat --theme="gruvbox-dark" --style=plain --color=always {}' --preview-window=right:50%)"
 }
 
