@@ -1,7 +1,3 @@
-################
-##### HOME #####
-################
-
 # grep with color
 alias grep="grep --color=auto"
 alias egrep="grep --color=auto"

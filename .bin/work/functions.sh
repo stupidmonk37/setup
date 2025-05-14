@@ -17,34 +17,6 @@ label-check-rack() {
   done
 }
 
-gv-status-summary() {
-  for RACK in "$@" ; do
-    for NODE in gn{1..9}; do
-      echo "Node: $RACK-$NODE"
-      kubectl describe gv "$RACK-$NODE" 2>/dev/null | \
-        awk '
-          /^[[:space:]]{4}[^:]+:$/ {
-            # Capture test name across multiple words
-            test_name = $1
-            for (i = 2; i <= NF; i++) {
-              test_name = test_name " " $i
-            }
-            sub(/:$/, "", test_name)
-
-            # Skip 4 lines, get to the 5th (Status line)
-            for (i = 0; i < 5 && getline > 0; i++);
-
-            if ($1 == "Status:") {
-              status = $2
-              printf "  %-40s %s\n", test_name, status
-            }
-          }
-        '
-      echo ""
-    done
-  done
-}
-
 kval-logs() {
   local cmd="kubectl-validation logs fetch --validation"
   local racks=()
