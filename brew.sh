@@ -7,15 +7,18 @@ sudo -v
 # =========================================================================
 # =====[ variables ]=======================================================
 # =========================================================================
-PACKAGES=(bash zsh tree watch kube-ps1 k9s tmux bat fzf)
-APPS=(sublime-text visual-studio-code rectangle chatgpt iterm2)
+work_env=false
+HOME_PACKAGES=(bash zsh tree watch tmux bat fzf powerlevel10k todo-txt zsh-autosuggestions zsh-syntax-highlighting zsh-completions)
+WORK_PACKAGES=(kube-ps1 k9s)
+HOME_APPS=(sublime-text visual-studio-code rectangle chatgpt iterm2 font-meslo-lg-nerd-font)
+WORK_APPS=()
 
 # =========================================================================
 # =====[ helpful functions ]==============================================
 # =========================================================================
 warn() { echo "     ⚠️  $1"; }
 fail() { echo "     ❌ $1"; }
-pass() { echo "     ✅ $1"; }
+pass() { echo "     ✅  $1"; }
 header() { print "\n🛠️ $1"; }
 
 spinner() {
@@ -73,7 +76,7 @@ configure_zsh_shell() {
       run_with_spinner "Adding $BREW_ZSH to allowed shells" echo "$BREW_ZSH" | sudo tee -a /etc/shells > /dev/null
     fi
     chsh -s "$BREW_ZSH"
-    pass " Shell changed to Homebrew zsh."
+    pass "Shell changed to Homebrew zsh."
   else
     warn "Homebrew zsh is already the default!"
   fi
@@ -95,6 +98,14 @@ update_homebrew() {
 # =========================================================================
 install_packages() {
   header "Installing CLI tools"
+
+  # Set PACKAGES depending on whether it's a work environment
+  if [ "$work_env" = true ]; then
+    PACKAGES=("${HOME_PACKAGES[@]}" "${WORK_PACKAGES[@]}")
+  else
+    PACKAGES=("${HOME_PACKAGES[@]}")
+  fi
+
   for pkg in "${PACKAGES[@]}"; do
     if brew list --formula | grep -qx "$pkg"; then
       warn "$pkg already installed!"
@@ -109,6 +120,14 @@ install_packages() {
 # =========================================================================
 install_apps() {
   header "Installing GUI apps"
+
+  # Set APPS depending on whether it's a work environment
+  if [ "$work_env" = true ]; then
+    APPS=("${HOME_APPS[@]}" "${WORK_APPS[@]}")
+  else
+    APPS=("${HOME_APPS[@]}")
+  fi
+
   for app in "${APPS[@]}"; do
     if brew list --cask | grep -qx "$app"; then
       warn "$app already installed!"
