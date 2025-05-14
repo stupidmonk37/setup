@@ -7,7 +7,7 @@ sudo -v
 # =========================================================================
 # =====[ variables ]=======================================================
 # =========================================================================
-PACKAGES=(bash zsh tree watch midnight-commander kube-ps1 k9s tmux bat fzf)
+PACKAGES=(bash zsh tree watch kube-ps1 k9s tmux bat fzf)
 APPS=(sublime-text visual-studio-code rectangle chatgpt iterm2)
 
 # =========================================================================
