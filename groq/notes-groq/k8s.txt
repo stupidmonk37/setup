@@ -1,4 +1,6 @@
-########### BMC ############
+# =============================================
+# =====[ BMC ]=================================
+# =============================================
 # get bmc info dmm
 curl http://10.158.131.5/api/v1/dhcp/leases |   jq -r '.active[] | [.hostname, .ip, .mac, .created, .expires_at, .renewed, .status] | @tsv'| sort | grep $RACK
 
@@ -12,9 +14,9 @@ for i in `curl http://10.158.131.5/api/v1/dhcp/leases |   jq -r '.active[] | [.h
 ipmitool -H <node> -U root -P GroqRocks1 power status
 
 
-
-
-########## PODS ###########
+# =============================================
+# =====[ PODS ]================================
+# =============================================
 # get pods for rack
 kubectl get pods -n groq-system | grep $RACK
 
@@ -28,10 +30,9 @@ kubectl delete pod -n groq-system -l app=tspd --field-selector spec.nodeName=c0r
 kubectl -n groq-system delete pod --force $POD
 
 
-
-
-
-######### INFO ############
+# =============================================
+# =====[ INFO ]================================
+# =============================================
 # current state of rack
 kubectl get nodes -n groq-system| grep $RACK
 
@@ -42,19 +43,16 @@ kubectl racks | grep $RACK
 kubectl racks -o json | jq '.items[] | select(.metadata.name=="c1r25")'
 
 
-
-
-
-
-######### MAINTENANCE ##########
+# =============================================
+# =====[ MAINTENANCE ]=========================
+# =============================================
 # uncordon rack
 for i in {1..9} ; do kubectl uncordon $RACK-gn$i ; done
 
 
-
-
-
-######## LOGS ################
+# =============================================
+# =====[ LOGS ]================================
+# =============================================
 # view logs
 kubectl logs -n groq-system $POD | jq
 
@@ -64,13 +62,11 @@ kubectl logs -c conductor -n groq-system $POD
 kubectl logs -c conductor $POD | egrep "$nova_ncp_reg" -o | sort -uV
 
 
-
-
-
-
-######## CONTEXT #########
+# =============================================
+# =====[ CONTEXT ]=============================
+# =============================================
 # add new context for tailscale
-tailscale configure kubeconfig msp2-prod1
+tailscale configure kubeconfig msp2-prod1.tail15648.ts.net
 
 # rename context
 kubectl config rename-context dmm1-prod1.tail15648.ts.net dmm1-prod1
@@ -84,13 +80,9 @@ k8s-switch
 kubectl racks -o json | jq '.items[] | select(.metadata.name=="c1r25")'
 
 
-
-
-
-
-
-
-######### NODE ADMIN ###########
+# =============================================
+# =====[ NODE ADMIN ]==========================
+# =============================================
 infrastructure-platform-clusters/scripts/node-admin.sh $NODE $IMAGE
 
 # job templates
@@ -117,31 +109,7 @@ don't forget to kc delete -f fw-update/ when you're done
 it will automatically reboot the node after the upgrade, but do follow the log so you see what is going on
 
 
-
-
-# New command i need to figure out
-❯ kc list info-rack c1r101
-{
-  "kind": "Rack",
-  "apiVersion": "v1",
-  "metadata": {
-    "name": "c1r101",
-    "creationTimestamp": null
-  },
-  "allocated": false,
-  "validated": false,
-  "status": "Repair",
-  "rackValidatedAt": "2025-03-19T17:37:00Z",
-  "totalNodes": 9,
-  "readyNodes": 9,
-  "notReadyNodes": 0,
-  "cordonedNodes": 0,
-  "repairNodes": 9,
-  "outOfServiceNodes": 0,
-  "topologyFamily": "xt",
-  "topologyWiring": "xt4444",
-  "next": "c1r102",
-  "prev": "c1r100",
-  "powerPod": "3"
-}
-
+# =============================================
+# =====[ LABELS ONE-LINER ]====================
+# =============================================
+for i in {1..9}; do node="c1r65-gn$i"; echo -n "$node: "; kubectl get node "$node" -o json 2>/dev/null | jq -r '[["validation.groq.io/node-complete", .metadata.labels["validation.groq.io/node-complete"]], ["validation.groq.io/rack-complete", .metadata.labels["validation.groq.io/rack-complete"]], ["validation.groq.io/cross-rack-complete", .metadata.labels["validation.groq.io/cross-rack-complete"]]] | map(select(.[1] != null) | "\(.[0]): \(.[1])") | join(", ")'; done

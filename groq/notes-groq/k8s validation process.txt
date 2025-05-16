@@ -29,10 +29,9 @@ kubectl-check-racks <rack> <rack> <rack>
 ./run.sh -t xt <rack> 
 
 
-###############################################################################
-##### Function Explainations ##################################################
-###############################################################################
-
+# ======================================================
+# =====[ Function Explainations ]=======================
+# ======================================================
 # check rack status
 Usage: kcheck <rack1> [rack2] [...]     # list all information for specific racks
 
@@ -48,10 +47,10 @@ Usage: kval-status --all                            # list validation status for
        kval-status --racks <rack> [rack2] [...]     # list validation status for all nodes in specific racks
        kval-status --only-failed                    # list only failed validation attempts
 
-##############################################################################
-##### Workflow... I think ####################################################
-##############################################################################
 
+# ======================================================
+# =====[ WORKFLOW ]=====================================
+# ======================================================
 # enter k8s mode
 kubeon
 
@@ -88,10 +87,10 @@ kval-status --racks <rack> [rack2] [...]
 # check source of truth
 kracks <rack> [rack2] [...]
 
-###############################################################################
-####### CMDS ##################################################################
-###############################################################################
 
+# ======================================================
+# =====[ COMMANDS ]=====================================
+# ======================================================
 kubectl describe gv (c1r1-gn1, c1r1, c1r1-c1r2)
 
 kubectl validation status
@@ -117,10 +116,10 @@ kubectl validation retry --manual-run cholman-c1r2-2025-03-26-1234
 kc get gv | grep c0r10
 kc validation nudge --validation c0r10-c0r11 # 
 
-###############################################################################
-##### Validation Status #######################################################
-###############################################################################
 
+# ======================================================
+# =====[ VALIDATION STATUS ]============================
+# ======================================================
 # prevent automated validation of specific nodes
 validation.groq.io/ignore-node=true
 
@@ -168,10 +167,10 @@ validationcli logs fetch --validation c1r2
 
 Importantly - when looking for node/rack status, this will NOT consider manually triggered test runs - only the full system qualification runs.
 
-###############################################################################
-##### Fetching logs ###########################################################
-###############################################################################
 
+# ======================================================
+# =====[ FETCHING LOGS ]================================
+# ======================================================
 Currently you need to know the name of the validation to get logs, but that’s straightforward.
 
 “c1r1-gn1” for node level validations.
@@ -209,11 +208,10 @@ RX/N4/C2/P6 ↔ RX/N4/C6/P6 (internal)
 RX/N4/C3/P6 ↔ RX/N4/C2/P12 (internal)
 RX/N4/C2/P14 ↔ RX/N4/C1/P12 (internal)
 
-###############################################################################
-##### Retry a hardware qualification test from the point of failure ###########
-###############################################################################
 
--------------------------------------------------------------------------------
+# ======================================================
+# =====[ RETRY QUAL FROM POINT OF FAILURE ]=============
+# ======================================================
 $ kubectl validation retry --node c1r2-gn5
 Node c1r2-gn5 failed groq-sweep-xt4444-8c for scope c1r2-gn5 after 3 retries.
 Retry? (y/n): y
@@ -226,10 +224,10 @@ $ kubectl validation retry --manual-run cholman-c1r2-2025-03-26-1234
 
 For use when a test has failed, and maybe we’ve done something simple like reboot, and we want to continue the tests from the point of failure. This will not rerun tests that have already passed. But generally we’d prefer to use the full requalifaction process if we’ve made any changes
 
-###############################################################################
-##### Retry a hardware qualification test from scratch ########################
-###############################################################################
 
+# ======================================================
+# =====[ RETRY QUAL FROM START ]========================
+# ======================================================
 Rerunning the entire hardware qualification suite will rerun the node, rack, and cross-rack tests. It ensure none of the nodes are being used, then it will remove the validation labels from all involved nodes so that all tests can be repeated.
 
 -------------------------------------------------------------------------------
@@ -248,11 +246,10 @@ The `GroqValidation` resources required to re-run those test will be deleted so 
 
 The repair (or similar) taint will be applied during the test runs
 
-###############################################################################
-##### Run a specific test(s) manually #########################################
-###############################################################################
 
--------------------------------------------------------------------------------
+# ======================================================
+# =====[ RUN TEST MANUALLY ]============================
+# ======================================================
 $ kubectl validation manual --nodes c1r3-gn1 --validator node-validation-2
 Error: preflight check failed
 # TODO: make this output useful
