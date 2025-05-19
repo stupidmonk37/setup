@@ -1,5 +1,23 @@
 #!/usr/bin/env python3
 
+# Through a single query to the cluster, this script checks the status of
+# k8s nodes and racks, and reports missing or NotReady nodes and labels.
+# Specifically, gv-dashboard.py is looking for the following:
+
+# node=READY
+# validation.groq.io/node-complete=true ### This needs to be true on all 9 nodes in a rack
+# validation.groq.io/rack-complete=true
+# validation.groq.io/cross-rack-complete=true
+
+# If the above are missing, a detailed report of which node/rack/xrk that has 
+# missing items will be generated at the bottom of the table. ie:
+
+# Rack c1r2 missing 2 node(s): c1r2-gn4, c1r2-gn9
+# Node c1r2-gn1 missing 'validation.groq.io/node-complete=true'
+# Node c1r2-gn3 not Ready.
+# Rack c1r2 missing 'validation.groq.io/rack-complete=true'
+# Cross-rack c1r2-c1r3 missing 'validation.groq.io/cross-rack-complete=true'
+
 import subprocess
 import json
 import shutil
