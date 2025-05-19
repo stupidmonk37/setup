@@ -1,34 +1,21 @@
 #!/usr/bin/env python3
 
+import os
+import sys
 import subprocess
 import argparse
-import sys
-import os
-import tempfile
-import shutil
-import venv
+import json
 
-# ANSI color codes
-GREEN = "\033[92m"
-RED = "\033[91m"
-YELLOW = "\033[93m"
-RESET = "\033[0m"
+def supports_color():
+    return sys.stdout.isatty() and os.environ.get("TERM") not in ("dumb", None)
+
+USE_COLOR = supports_color()
+GREEN = "\033[92m" if USE_COLOR else ""
+RED = "\033[91m" if USE_COLOR else ""
+YELLOW = "\033[93m" if USE_COLOR else ""
+RESET = "\033[0m" if USE_COLOR else ""
 
 COLUMN_WIDTH = 88
-
-def run_kubectl_get_validation(cluster_id):
-    import yaml
-    command = f"kubectl get gv {cluster_id} -o yaml"
-    try:
-        result = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
-        return yaml.safe_load(result.stdout)
-    except subprocess.CalledProcessError as e:
-        print(f"{RED}Error: Failed to fetch validation data for cluster '{cluster_id}'{RESET}")
-        print(e.stderr.strip())
-        sys.exit(1)
-    except yaml.YAMLError as e:
-        print(f"{RED}YAML parsing error:{RESET} {e}")
-        sys.exit(1)
 
 def colorize_status(status):
     if not status:
@@ -40,6 +27,19 @@ def colorize_status(status):
         return f"{RED}{status:<8}{RESET}"
     else:
         return f"{YELLOW}{status:<8}{RESET}"
+
+def run_kubectl_get_validation(cluster_id):
+    command = f"kubectl get gv {cluster_id} -o json"
+    try:
+        result = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
+        return json.loads(result.stdout)
+    except subprocess.CalledProcessError as e:
+        print(f"{RED}❌ Error: Failed to fetch validation data for cluster '{cluster_id}'{RESET}")
+        print(e.stderr.strip())
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"{RED}JSON parsing error:{RESET} {e}")
+        sys.exit(1)
 
 def print_table_header(title):
     total_width = COLUMN_WIDTH + 13
@@ -94,28 +94,5 @@ def main():
         print_validation_table(cluster_id)
         print("\n")
 
-def run_with_temp_venv():
-    venv_dir = tempfile.mkdtemp(prefix="tmp_venv_")
-    try:
-        print(f"🔧 Creating temporary virtualenv in {venv_dir}")
-        venv.create(venv_dir, with_pip=True)
-
-        pip = os.path.join(venv_dir, "bin", "pip")
-        python = os.path.join(venv_dir, "bin", "python")
-
-        # Silent pip install
-        subprocess.check_call([pip, "install", "pyyaml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-        print("🚀 Running script inside venv...")
-        subprocess.check_call([python, __file__, *sys.argv[1:]])
-    finally:
-        print("🧹 Cleaning up virtualenv...")
-        shutil.rmtree(venv_dir)
-
 if __name__ == "__main__":
-    if sys.prefix == sys.base_prefix:
-        # Not inside a venv
-        run_with_temp_venv()
-    else:
-        # Already inside a venv
-        main()
+    main()
