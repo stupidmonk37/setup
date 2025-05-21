@@ -34,8 +34,7 @@ def colorize_status(status, width=9):
     }
     text = status if status else "N/A"
     color = color_map.get(text.lower(), YELLOW)
-    colored = f"{color}{text}{RESET}"
-    return pad(colored,width)
+    return f"{color}{text:^{width}}{RESET}"
 
 def kubectl_get_json(resource, name=None):
     cmd = ["kubectl", "get", resource]
@@ -70,10 +69,8 @@ def extract_rack_prefix(name):
 # Rack c1r2 missing 'validation.groq.io/rack-complete=true'
 # Cross-rack c1r2-c1r3 missing 'validation.groq.io/cross-rack-complete=true'
 
-
-
 # -------- CLUSTER DASHBOARD -------- #
-def run_cluster_dashboard(only_warnings=False):
+def run_cluster_dashboard():
     def is_watch_mode():
         try:
             ppid = os.getppid()
@@ -85,7 +82,7 @@ def run_cluster_dashboard(only_warnings=False):
     use_color = sys.stdout.isatty() and not is_watch_mode()
 
     def color_status(value):
-        return colorize_status(value, 7)
+        return colorize_status(value, 6)
 
     if not shutil.which("kubectl"):
         raise EnvironmentError("Missing required command: kubectl")
@@ -143,13 +140,7 @@ def run_cluster_dashboard(only_warnings=False):
         next_rack = f"{prefix}{int(num) + 1}" if num != "?" else "?"
         cross_key = f"{rack}-{next_rack}"
         cross_expected.add(cross_key)
-        cross_status = cross_rack.get(cross_key, "N/A")
-
-        if only_warnings:
-            statuses = [node_status, rack_status, cross_status]
-            if all(s == "Success" for s in statuses):  # Ignore empty statuses
-                continue
-
+        cross_status = cross_rack.get(cross_key, "")
         print(f"| {pad(rack, 7)} | {color_status(node_status)} | {color_status(rack_status)} | {pad(cross_key, 13)} | {color_status(cross_status)} |")
 
     print("+-------------------------------------------------------+")
@@ -160,40 +151,20 @@ def run_cluster_dashboard(only_warnings=False):
     print(f"  Racks:       {sum(racks[r]['rack']=='Success' for r in rack_ids)}/{total_racks}")
     print(f"  Cross-Rack:  {len(cross_rack)}/{total_racks}")
 
-    if not only_warnings:
-        total_racks = len(rack_ids)
-        total_nodes = len(node_complete)
-        ready_nodes = sum(1 for n, ready in node_complete.items() if ready)
-        print(f"\nSummary:\n  Nodes:       {ready_nodes}/{total_nodes}")
-        print(f"  Racks:       {sum(racks[r]['rack']=='Success' for r in rack_ids)}/{total_racks}")
-        print(f"  Cross-Rack:  {len(cross_rack)}/{total_racks}")
 
-    warnings_found = False
-    warnings_output = []
-
+    print("\nWarnings:")
     for rack in rack_ids:
         expected = {f"{rack}-gn{i}" for i in range(1, 10)}
         found = rack_to_nodes[rack]
         for node in sorted(found):
             if not node_complete.get(node, False):
-                warnings_output.append(f"  Node {node} NotReady")
-                warnings_found = True
+                print(f"  Node {node} NotReady")
         if expected - found:
-            warnings_output.append(f"  Rack {rack} missing nodes: {', '.join(sorted(expected - found))}")
-            warnings_found = True
+            print(f"  Rack {rack} missing nodes: {', '.join(sorted(expected - found))}")
         if not rack_complete.get(rack, False):
-            warnings_output.append(f"  Rack {rack} missing 'validation.groq.io/rack-complete=true' label")
-            warnings_found = True
-
+            print(f"  Rack {rack} missing 'validation.groq.io/rack-complete=true' label")
     for cross_key in sorted(cross_expected - cross_rack.keys()):
-        warnings_output.append(f"  Cross-rack {cross_key} missing 'validation.groq.io/cross-rack-complete=true' label")
-        warnings_found = True
-
-    print("\nWarnings:")
-    if warnings_found:
-        print("\n".join(warnings_output))
-    elif only_warnings:
-        print("🎉 All nodes are ready and validation labels present! 🎉")
+        print(f"  Cross-rack {cross_key} missing 'validation.groq.io/cross-rack-complete=true' label")
 
 def clear_screen():
     if sys.stdout.isatty():
@@ -288,10 +259,9 @@ def main():
         def _format_args(self, action, default_metavar):
             return action.metavar
 
-    parser = argparse.ArgumentParser(description="Validation Dashboard for Groq Clusters", usage="gv-dashboards.py [--cluster] [--only-warnings] [--nodes <rack>] [--rack <rack>] [--cross-rack <rack1>-<rack2>] [<rack> ...]", formatter_class=lambda prog: CustomHelpFormatter(prog, max_help_position=40))
+    parser = argparse.ArgumentParser(description="Validation Dashboard for Groq Clusters", usage="gv-dashboards.py [--cluster] [--nodes NODE] [--rack RACK] [--cross-rack RACK-RACK] [RACK ...]", formatter_class=lambda prog: CustomHelpFormatter(prog, max_help_position=40))
     parser.add_argument("rack_name", nargs="*", metavar="<rack>", help="One or more rack names (e.g., c1r1, c1r1-c1r2, or c1r{1..2})")
     parser.add_argument("--cluster", "-c", action="store_true", help="View the cluster-wide dashboard")
-    parser.add_argument("--only-warnings", action="store_true", help="Only show warnings in the cluster view (requires --cluster)")
     parser.add_argument("--nodes", "-n", nargs="+", type=validate_rack_name, metavar="<rack>", help="View node-level validation status (multiple allowed)")
     parser.add_argument("--rack", "-r", nargs="+", type=validate_rack_name, metavar="<rack>", help="View rack-level validation status (multiple allowed)")
     parser.add_argument("--cross-rack", "-x", nargs="+", type=validate_cross_rack, metavar="<rack1>-<rack2>", help="View cross-rack validation status (multiple allowed)")
@@ -302,11 +272,8 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    if args.only_warnings and not args.cluster:
-        parser.error("--only-warnings can only be used with --cluster")
-
     if args.cluster:
-        run_cluster_dashboard(only_warnings=args.only_warnings)
+        run_cluster_dashboard()
     if args.nodes:
         run_node_dashboard(args.nodes)
     if args.rack:
