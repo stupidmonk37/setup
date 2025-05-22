@@ -1,7 +1,3 @@
-################
-##### GROQ #####
-################
-
 #alias kval-logs="kubectl-validation logs fetch --validation "
 alias conman="sft ssh conman.c.groq-psw-infra.internal"
 alias kc="kubectl"
