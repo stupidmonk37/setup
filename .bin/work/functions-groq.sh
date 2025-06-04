@@ -17,6 +17,7 @@ label-check-rack() {
   done
 }
 
+: <<'ALIASED'
 kval-logs() {
   local cmd="kubectl-validation logs fetch --validation"
   local racks=()
@@ -53,7 +54,9 @@ kval-logs() {
 
   eval "$cmd"
 }
+ALIASED
 
+: <<'SCRIPTED'
 kval-status() {
   local cmd="kubectl validation status"
   local racks=()
@@ -98,12 +101,7 @@ kval-status() {
 
   eval "$cmd"
 }
-
-kctx() {
-  local context
-  context=$(kubectl config get-contexts -o name | fzf --prompt="K8s Context > ")
-  [[ -n "$context" ]] && kubectl config use-context "$context"
-}
+SCRIPTED
 
 k8s-switch() {
   echo "🔍 Select a Kubernetes context:"
@@ -168,6 +166,7 @@ kracks() {
   fi
 }
 
+: <<'GV_TUI_DUP'
 kcheck() {
     if [ "$#" -eq 0 ]; then
         echo "Usage: kcheck <rack1> [rack2] [...]"
@@ -196,6 +195,7 @@ kcheck() {
     echo "=========================="
     kubectl validation status --racks "$(IFS=,; echo "${racks[*]}")"
 }
+GV_TUI_DUP
 
 # Get logs from failed pods
 # Append strings to filter the output
