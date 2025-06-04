@@ -34,10 +34,6 @@ source $HOME/.config/groq-bootstrap/groq-bootstrap.zsh
 ##### k8s #####
 ###############
 
-# context and namespace in prompt
-source /opt/homebrew/opt/kube-ps1/share/kube-ps1.sh
-kubeoff
-
 # auto complete
 autoload -Uz compinit
 compinit

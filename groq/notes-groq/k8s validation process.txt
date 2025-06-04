@@ -1,34 +1,3 @@
-# rack validation process
-
-# pre validation
-
-1 - create tracking spreadsheet
-2 - create Jira epic
-
-# actual validation
-1 - check bios version
-kubectl-list bios-version | grep <rack>-
-	1.1 - update bios if version isn't 2.8.v2
-
-2 - check rack status
-kubectl-check-racks <rack> <rack> <rack>
-
-3 - go to working dir
-k8s (~/git/infrastructure-platform-cluster/scripts/hw_validation)
-
-4 - check for missing optics
-ONLY_TESTS=missing-optics ./run.sh -t xt <rack>
-
-5 - submit tickets for missing optics
-
-6 - validate optics are updated and look good
-kubectl-check-racks <rack> <rack> <rack>
-	6.1 - if optics are out of date, delete tspd pod and recheck
-
-7 - run validation
-./run.sh -t xt <rack> 
-
-
 # ======================================================
 # =====[ Function Explainations ]=======================
 # ======================================================

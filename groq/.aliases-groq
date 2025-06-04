@@ -1,7 +1,3 @@
-################
-##### GROQ #####
-################
-
 #alias kval-logs="kubectl-validation logs fetch --validation "
 alias kval-retry="kubectl-validation retry --validation"
 alias kval-logs="kubectl-validation logs fetch --validation"
