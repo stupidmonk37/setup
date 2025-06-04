@@ -51,22 +51,16 @@ Usage: kval-status --all                            # list validation status for
 # ======================================================
 # =====[ WORKFLOW ]=====================================
 # ======================================================
-# enter k8s mode
-kubeon
-
 # get to right context and namespace
 k8s-switch
 
-# make sure all nodes are up
-kracks <rack> # or kracks c1r{1..5} c1r7
-
-# on any rack that isn't healthy, find the missing nodes
-knodes <rack> [rack2] [...]
+# see current state of the cluster
+~/git/dc-tools/tools/gv-dashboards.py -c
 
 ##### fix the missing / unhealthy nodes #####
 
 # check validation status
-kval-status --racks <rack> [rack2] [...]
+~/git/dc-tools/tools/gv-dashboards.py -c
 
 # find failed attempts only
 kval-status --only-failed
@@ -81,12 +75,17 @@ THIS NEEDS TO BE LOOKED INTO USING KUBECTL REPAIR
     # removes existing validation from node, rack and xrk - It's like starting validation over
     kubectl validation requalify --node <rack-node>
 
-# make sure everything passes
-kval-status --racks <rack> [rack2] [...]
-
 # check source of truth
 kracks <rack> [rack2] [...]
 
+# ======================================================
+# =====[ ADD NODE(S) TO CLUSTER ]==========================
+# ======================================================
+cd /Users/jjensen/git/infrastructure-platform-clusters/scripts
+NODES=$(echo c1r{9..20}-gn{1..9}) ./bios-config-yaml-gen.sh && kubectl apply -f bios-config-jobs && rm -rf bios-config-jobs
+
+# as nodes come up, run:
+kubectl label nodes -l 'groq.node=true,!topology.groq.io/wiring' topology.groq.io/family=xt topology.groq.io/wiring=xt4444 topology.groq.io/power-pod-id=1 --overwrite
 
 # ======================================================
 # =====[ COMMANDS ]=====================================

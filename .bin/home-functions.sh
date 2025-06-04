@@ -4,6 +4,16 @@
 # `tm` will allow you to select your tmux session via fzf.
 # `tm irc` will attach to the irc session (if it exists), else it will create it.
 
+pullallrepos() {
+  base_dir=~/git
+  find "$base_dir" -maxdepth 3 -name .git -type d | while read d; do
+    repo=$(dirname "$d")
+    echo "=== Pulling in $repo ==="
+    git -C "$repo" pull
+    echo
+  done
+}
+
 tw () {
 	[[ -n "$TMUX" ]] && change="switch-client" || change="attach-session"
 
@@ -97,6 +107,6 @@ fh() {
 }
 
 fnotes() {
-  bat --theme="gruvbox-dark" --style=plain "$(find ~/git/setup/groq/notes-groq -type f 2> /dev/null | fzf-tmux --exact -p 70%,50% --preview 'bat --theme="gruvbox-dark" --style=plain --color=always {}' --preview-window=right:50%)"
+  bat --theme="gruvbox-dark" --style=plain "$(find ~/git/setup/groq/notes-groq/* -type f 2> /dev/null | fzf-tmux --exact -p 70%,50% --preview 'bat --theme="gruvbox-dark" --style=plain --color=always {}' --preview-window=right:50%)"
 }
 

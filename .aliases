@@ -14,3 +14,4 @@ alias bat='bat --style=plain --theme="gruvbox-dark" --color=always'
 
 # bat that prints like cat
 alias batcat='bat --theme="gruvbox-dark" --style=plain --paging=never'
+

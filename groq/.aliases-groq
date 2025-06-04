@@ -3,6 +3,10 @@
 ################
 
 #alias kval-logs="kubectl-validation logs fetch --validation "
+alias kval-retry="kubectl-validation retry --validation"
+alias kval-logs="kubectl-validation logs fetch --validation"
+alias tui="cd ~/git/dc-tools/tools/gv-tui"
+alias kbios-conformance="kubectl get node -l groq.node.bios-conformance=fail,topology.groq.io/server-type=smc-groqnode -o custom-columns=NAME:.metadata.name,BIOS_VERSION:.metadata.annotations.dmi.bios_version,BIOS_CONFORMANCE:.metadata.labels.groq.node.bios-conformance,FW_BUNDLE_LOWEST:.metadata.labels.validation.groq.io/firmware-bundle-lowest"
 alias conman="sft ssh conman.c.groq-psw-infra.internal"
 alias kc="kubectl"
 alias k8s="cd /Users/jjensen/git/infrastructure-platform-clusters/scripts/hw_validation"

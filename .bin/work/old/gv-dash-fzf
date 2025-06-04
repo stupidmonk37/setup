@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+DASHBOARD_SCRIPT="$HOME/.bin/work/gv-dashboards.py"
+
+# Get available racks from node names
+get_rack_names() {
+  kubectl get nodes -o jsonpath='{.items[*].metadata.name}' |
+    tr ' ' '\n' |
+    sed -E 's/-gn[0-9]+$//' |
+    sort -u
+}
+
+# Get cross-rack combinations from rack names
+get_cross_racks() {
+  get_rack_names | sort -V | paste -d'-' - - | grep -
+}
+
+# Interactive fzf selection for any mode
+fzf_select() {
+  local type="$1"
+  local options
+
+  case "$type" in
+    node)
+      options=$(get_rack_names)
+      ;;
+    rack)
+      options=$(get_rack_names)
+      ;;
+    cross-rack)
+      options=$(get_cross_racks)
+      ;;
+    *)
+      echo "Unknown type: $type" >&2
+      exit 1
+      ;;
+  esac
+
+  echo "$options" | fzf --multi --prompt="Select $type(s): " --preview="echo {}" --height=20 --border
+}
+
+# Main menu using fzf
+main_menu() {
+  local choice
+  choice=$(printf "Cluster Dashboard\nNode Dashboard\nRack Dashboard\nCross-Rack Dashboard\nQuit" | fzf --prompt="Dashboard Type: ")
+
+  case "$choice" in
+    "Cluster Dashboard")
+      python3 "$HOME/.bin/work/gv-dashboards.py" --cluster | less -R
+      ;;
+    "Node Dashboard")
+      racks=$(fzf_select node)
+      [ -n "$racks" ] && "$DASHBOARD_SCRIPT" --nodes $racks | less -R
+      ;;
+    "Rack Dashboard")
+      racks=$(fzf_select rack)
+      [ -n "$racks" ] && "$DASHBOARD_SCRIPT" --rack $racks | less -R
+      ;;
+    "Cross-Rack Dashboard")
+      pairs=$(fzf_select cross-rack)
+      [ -n "$pairs" ] && "$DASHBOARD_SCRIPT" --cross-rack $pairs | less -R
+      ;;
+    "Quit" | "")
+      echo "Goodbye!"
+      exit 0
+      ;;
+  esac
+}
+
+main_menu
