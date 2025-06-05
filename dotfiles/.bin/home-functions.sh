@@ -14,6 +14,8 @@ pullallrepos() {
   done
 }
 
+export pullallrepos
+
 tw () {
 	[[ -n "$TMUX" ]] && change="switch-client" || change="attach-session"
 
