@@ -1,20 +1,70 @@
 #! /bin/bash
 
-# tm - create new tmux session, or switch to existing one. Works from within tmux too. (@bag-man)
-# `tm` will allow you to select your tmux session via fzf.
-# `tm irc` will attach to the irc session (if it exists), else it will create it.
+newdev() {
+  local updated=0
+  local skipped=0
+  local failed=0
 
-pullallrepos() {
-  base_dir=~/git
-  find "$base_dir" -maxdepth 3 -name .git -type d | while read d; do
-    repo=$(dirname "$d")
-    echo "=== Pulling in $repo ==="
-    git -C "$repo" pull
-    echo ""
+  # groq specific tools
+  #update-tools
+  curl -fsSL https://storage.googleapis.com/bkt-c-onboarding-public-us-d9a6/bootstrap.sh | NO_K8S_CONFIG=true bash
+
+  echo ""
+  echo "🗂️ Pulling repos..."
+  echo ""
+
+  find "$HOME/git" -maxdepth 3 -name .git -type d | while IFS= read -r d; do
+    local repo_path
+    repo_path=$(dirname "$d")
+    local parent_name
+    parent_name=$(basename "$(dirname "$repo_path")")
+    local repo_name
+    repo_name=$(basename "$repo_path")
+    local display_name="$parent_name/$repo_name"
+
+    local output_file
+    output_file=$(mktemp)
+
+    git -C "$repo_path" pull &> "$output_file" &
+    local pid=$!
+
+    local spin='-\|/'
+    local i=0
+
+    while kill -0 $pid 2>/dev/null; do
+      i=$(( (i + 1) % 4 ))
+      printf "\r    [%s] %s" "${spin:$i:1}" "$display_name"
+      sleep 0.1
+    done
+
+    wait $pid
+    local exit_status=$?
+
+    local output
+    output=$(<"$output_file")
+    rm -f "$output_file"
+
+    if [ $exit_status -eq 0 ]; then
+      if echo "$output" | grep -q "Already up to date"; then
+        printf "\r\033[K    ⏭️  %s\n" "$display_name"
+        skipped=$((skipped + 1))
+      else
+        printf "\r\033[K    ✅ %s\n" "$display_name"
+        updated=$((updated + 1))
+      fi
+    else
+      printf "\r\033[K    ❌ %s\n" "$display_name"
+      failed=$((failed + 1))
+    fi
   done
-}
 
-export pullallrepos
+  echo ""
+  if (( updated > 0 || failed > 0 )); then
+    echo "🎉 Done: $updated updated, $skipped up to date, $failed failed."
+  else
+    echo "✅ All $skipped repositories were already up to date."
+  fi
+}
 
 tw () {
 	[[ -n "$TMUX" ]] && change="switch-client" || change="attach-session"
@@ -82,7 +132,6 @@ tkill () {
 	done
 }
 
-
 fvfind() {
   local file
   file=$(fzf-tmux --exact -p 80%,60% --preview 'bat --theme="gruvbox" --style=plain --color=always {}' --preview-window=right:50%)
@@ -94,15 +143,6 @@ fbfind() {
   file=$(fzf-tmux --exact -p 80%,60% --preview 'bat --theme="gruvbox-dark" --style=plain --color=always {}' --preview-window=right:50%)
   [ -n "$file" ] && bat --theme="gruvbox-dark" --plain --color=always "$file"
 }
-
-
-# In tmux.conf
-# bind-key 0 run "tmux split-window -l 12 'bash -ci ftpane'"
-
-
-#fcd() {
-#  cd "$(find ${1:-.} -type d 2> /dev/null | fzf-tmux --exact -p 70%,50% --preview 'ls -alhG {}' --preview-window=right:50%)"
-#}
 
 fh() {
   eval "$(history | fzf | sed 's/ *[0-9]* *//')"
