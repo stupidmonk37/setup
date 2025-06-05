@@ -1,6 +1,18 @@
 #! /bin/bash
 
 newdev() {
+
+# =========================================================================
+# =====[ UPDATE HOMEBREW ]=================================================
+# =========================================================================
+#update_homebrew() {
+#  header "Updating and cleaning Homebrew"
+#  run_with_spinner " Updating brew" brew update
+#  run_with_spinner " Upgrading brew" brew upgrade
+#  run_with_spinner " Upgrading casks" brew upgrade --cask
+#  run_with_spinner " Cleaning up" brew cleanup
+#}
+
   local updated=0
   local skipped=0
   local failed=0

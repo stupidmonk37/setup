@@ -8,9 +8,9 @@ sudo -v
 # =====[ VARIABLES ]=======================================================
 # =========================================================================
 work_env=false
-HOME_PACKAGES=(yq bash zsh tree watch tmux bat fzf powerlevel10k todo-txt pipx zsh-autosuggestions zsh-syntax-highlighting zsh-completions)
+HOME_PACKAGES=(yq bash zsh tree watch tmux bat fzf powerlevel10k todo-txt pipx zsh-autosuggestions zsh-syntax-highlighting)
 WORK_PACKAGES=(k9s ipmitool pdsh)
-HOME_APPS=(sublime-text visual-studio-code rectangle chatgpt iterm2 font-meslo-for-powerlevel10k font-symbols-only-nerd-font)
+HOME_APPS=(visual-studio-code rectangle chatgpt iterm2 font-meslo-for-powerlevel10k font-symbols-only-nerd-font)
 WORK_APPS=()
 
 # =========================================================================
