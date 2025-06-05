@@ -10,7 +10,7 @@ pullallrepos() {
     repo=$(dirname "$d")
     echo "=== Pulling in $repo ==="
     git -C "$repo" pull
-    echo
+    echo ""
   done
 }
 

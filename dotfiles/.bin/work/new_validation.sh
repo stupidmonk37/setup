@@ -8,10 +8,15 @@ fi
 
 SESSION_NAME="$1"
 
-source ~/.bin/home-functions.sh
-pullallrepos
+if [[ -z "$2" ]]; then
+  source ~/.bin/home-functions.sh
+  pullallrepos
+elif [[ "$2" == "--nopull" ]]; then
+  echo "git pull option skipped, continuing..."
+fi
+
 # Start a new detached tmux session
-tmux new-session -d -s "$SESSION_NAME"
+tmux new-session -d -s "$SESSION_NAME" -n validation
 
 tmux select-pane -t "$SESSION_NAME:1.0"
 tmux split-window -h
@@ -22,9 +27,13 @@ tmux split-window -h
 tmux select-pane -t "$SESSION_NAME:1.2"
 tmux split-window -v
 
+# left vertical pane
 tmux send-keys -t "$SESSION_NAME:1.0" "cd ~/git/dc-tools/tools/gv-tui && ./setup.sh && source gv_tui_venv/bin/activate && python3 gv_tui.py" C-m
+# middle vertical pane
 tmux send-keys -t "$SESSION_NAME:1.1" "cd ~/git/dc-tools/tools/gv-tui && ./setup.sh && source gv_tui_venv/bin/activate && python3 gv_tui.py" C-m
+# top right pane
 tmux send-keys -t "$SESSION_NAME:1.2" "k9s -c pod" C-m
+# bottom right pane
 tmux send-keys -t "$SESSION_NAME:1.3" "watch -n30 kval-status.sh --failed" C-m
 
 # Attach to the session
