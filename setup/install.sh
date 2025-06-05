@@ -7,31 +7,15 @@ sudo -v
 # ==========================================================================
 # =====[ VARIABLES ]========================================================
 # ==========================================================================
-- WORK_ENV=true
-- JOB=groq
-- WORK_DIR="$HOME/git/setup/$JOB"
-DOTFILE_DIR="$HOME/git/setup"
-- BASE_FILE=(.vim .vimrc .zshrc .zprofile .aliases .bin .tmux.conf .p10k.zsh)
-- WORK_FILE=(.aliases-$job .zshrc-$job) 
+WORK_ENV=true
+JOB=groq
+SETUP_DIR="$HOME/git/setup"
+DOTFILE_FILE=(.vim .vimrc .zshrc .zprofile .aliases .bin .tmux.conf .p10k.zsh)
+DOTFILE_DIR="$SETUP_DIR/dotfiles"
+WORK_FILE=(.aliases-$JOB .zshrc-$JOB)
+WORK_DIR="$SETUP_DIR/$JOB" 
 GRUVBOX_URL="https://raw.githubusercontent.com/morhetz/gruvbox/master/colors/gruvbox.vim"
 GRUVBOX_PATH="$DOTFILE_DIR/.vim/colors/gruvbox.vim"
-
-#work_env=false
-#job=groq
-#base_file=(.aliases .tmux.conf .vimrc .zprofile)
-#base_dir="$HOME/git/setup"
-#work_file=(.aliases-$job .zshrc-$job)
-#work_dir="$HOME/git/setup/$job"
-if $WORK_ENV ; then
-    mkdir "${WORK_DIR}"
-    for file in "${WORK_FILE}" ; do
-        touch "${WORK_DIR}/${WORK_FILE}"
-    done
-elif ! $WORK_ENV ; then
-    continue
-else
-    echo "ERROR: UNKNOWN OPTION $1"
-done
 
 # ==========================================================================
 # =====[ HELPFUL FUNCTIONS ]================================================
@@ -65,11 +49,21 @@ run_with_spinner() {
 }
 
 # ==========================================================================
+# =====[ CREATE WORK DIR ]==================================================
+# ==========================================================================
+if $WORK_ENV ; then
+    mkdir -p "${WORK_DIR}"
+    for file in "${WORK_FILE[@]}" ; do
+        touch "${WORK_DIR}/${file}"
+    done
+fi
+
+# ==========================================================================
 # =====[ SYMLINK SETUP ]====================================================
 # ==========================================================================
 symlink_setup() {
     header "Linking dotfiles from ~/git/setup → ~/"
-    for file in "${FILES[@]}"; do
+    for file in "${DOTFILE_FILE[@]}"; do
         src="${DOTFILE_DIR}/${file}"
         dest="${HOME}/${file}"
 
@@ -140,4 +134,3 @@ install_vim_theme
 run_brew
 install_fzf_tab
 print_done
-
