@@ -1,81 +1,110 @@
 #! /bin/bash
 
-newdev() {
+run_spinner() {
+   emulate -L zsh
+   setopt NO_MONITOR
 
-# =========================================================================
-# =====[ UPDATE HOMEBREW ]=================================================
-# =========================================================================
-#update_homebrew() {
-#  header "Updating and cleaning Homebrew"
-#  run_with_spinner " Updating brew" brew update
-#  run_with_spinner " Upgrading brew" brew upgrade
-#  run_with_spinner " Upgrading casks" brew upgrade --cask
-#  run_with_spinner " Cleaning up" brew cleanup
-#}
+   local msg="$1"
+   shift
+
+   local output_file
+   output_file=$(mktemp)
+   "$@" &> "$output_file" &
+   local pid=$!
+   local spin='-\|/'
+   local i=0
+
+   while kill -0 $pid 2>/dev/null; do
+     i=$(( (i + 1) % 4 ))
+     printf "\r    [%s] %s" "${spin:$i:1}" "$msg"
+     sleep 0.1
+   done
+
+   wait $pid
+   run_spinner_status=$?
+   run_spinner_output=$(<"$output_file")
+   rm -f "$output_file"
+
+   # Clear the spinner line (no status symbol here)
+   printf "\r\033[K"
+}
+
+homebrew_update() {
+  echo ""
+  echo "🍺 Updating Homebrew..."
+
+  # Declare commands and labels
+  local cmds=(
+    "brew update"
+    "brew upgrade"
+    "brew upgrade --cask"
+    "brew cleanup"
+  )
+
+  for cmd in "${cmds[@]}"; do
+    local label="$cmd"
+    eval run_spinner "\"$label\"" $cmd
+
+    if [ $run_spinner_status -eq 0 ]; then
+      printf "    ✅ %s\n" "$label"
+    else
+      printf "    ❌ %s\n" "$label"
+    fi
+  done
+
+  echo "🍻 Done - Homebrew updated"
+}
+
+pull_repos() {
+  echo ""
+  echo "🗂️ Pulling repos..."
 
   local updated=0
   local skipped=0
   local failed=0
 
-  # groq specific tools
-  #update-tools
-  curl -fsSL https://storage.googleapis.com/bkt-c-onboarding-public-us-d9a6/bootstrap.sh | NO_K8S_CONFIG=true bash
-
-  echo ""
-  echo "🗂️ Pulling repos..."
-  echo ""
-
-  find "$HOME/git" -maxdepth 3 -name .git -type d | while IFS= read -r d; do
-    local repo_path
-    repo_path=$(dirname "$d")
-    local parent_name
-    parent_name=$(basename "$(dirname "$repo_path")")
-    local repo_name
-    repo_name=$(basename "$repo_path")
+  find "$HOME/git" -maxdepth 2 -name .git -type d | while IFS= read -r d; do
+    local repo_path=$(dirname "$d")
+    local repo_name=$(basename "$repo_path")
+    local parent_name=$(basename "$(dirname "$repo_path")")
     local display_name="$parent_name/$repo_name"
 
-    local output_file
-    output_file=$(mktemp)
+  run_spinner "$display_name" git -C "$repo_path" pull
 
-    git -C "$repo_path" pull &> "$output_file" &
-    local pid=$!
-
-    local spin='-\|/'
-    local i=0
-
-    while kill -0 $pid 2>/dev/null; do
-      i=$(( (i + 1) % 4 ))
-      printf "\r    [%s] %s" "${spin:$i:1}" "$display_name"
-      sleep 0.1
-    done
-
-    wait $pid
-    local exit_status=$?
-
-    local output
-    output=$(<"$output_file")
-    rm -f "$output_file"
-
-    if [ $exit_status -eq 0 ]; then
-      if echo "$output" | grep -q "Already up to date"; then
-        printf "\r\033[K    ⏭️  %s\n" "$display_name"
-        skipped=$((skipped + 1))
-      else
-        printf "\r\033[K    ✅ %s\n" "$display_name"
-        updated=$((updated + 1))
-      fi
+  if [ $run_spinner_status -eq 0 ]; then
+    if echo "$run_spinner_output" | grep -q "Already up to date"; then
+      printf "    ⏭️ %s\n" "$display_name"
+      ((skipped++))
     else
-      printf "\r\033[K    ❌ %s\n" "$display_name"
-      failed=$((failed + 1))
+      printf "    ✅ %s\n" "$display_name"
+      ((updated++))
     fi
+  else
+    printf "    ❌ %s\n" "$display_name"
+    ((failed++))
+  fi
+
   done
 
-  echo ""
   if (( updated > 0 || failed > 0 )); then
     echo "🎉 Done: $updated updated, $skipped up to date, $failed failed."
   else
     echo "✅ All $skipped repositories were already up to date."
   fi
+}
+
+newdev() {
+  echo ""
+  echo "🔄 Updating all the things..."
+  echo ""
+
+  curl -fsSL https://storage.googleapis.com/bkt-c-onboarding-public-us-d9a6/bootstrap.sh | NO_K8S_CONFIG=true bash
+  homebrew_update
+  pull_repos1
+
+  echo ""
+  echo "🎉 Done - All the things updated"
+  echo ""
 }
 
 tw () {

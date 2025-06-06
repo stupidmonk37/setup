@@ -1,14 +1,12 @@
 #!/usr/bin/env zsh
 
 set -e
-
 sudo -v
 
-# =========================================================================
-# =====[ VARIABLES ]=======================================================
-# =========================================================================
+source "$HOME/git/setup/dotfiles/.bin/home-functions.sh"
+
 work_env=false
-HOME_PACKAGES=(yq bash zsh tree watch tmux bat fzf powerlevel10k todo-txt pipx zsh-autosuggestions zsh-syntax-highlighting)
+HOME_PACKAGES=(yq bash zsh tree watch tmux bat fzf powerlevel10k pipx parallelzsh-autosuggestions zsh-syntax-highlighting)
 WORK_PACKAGES=(k9s ipmitool pdsh)
 HOME_APPS=(visual-studio-code rectangle chatgpt iterm2 font-meslo-for-powerlevel10k font-symbols-only-nerd-font)
 WORK_APPS=()
@@ -41,9 +39,19 @@ run_with_spinner() {
   spinner
 }
 
-# =========================================================================
-# =====[ HOMEBREW ]========================================================
-# =========================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
 install_brew() {
   header "Checking if Homebrew is installed"
   if ! command -v brew &>/dev/null; then
@@ -65,9 +73,6 @@ install_brew() {
   fi
 }
 
-# =========================================================================
-# =====[ SET SHELL ]=======================================================
-# =========================================================================
 configure_zsh_shell() {
   header "Setting Homebrew zsh as default shell"
   local BREW_ZSH="$(brew --prefix)/bin/zsh"
@@ -82,9 +87,6 @@ configure_zsh_shell() {
   fi
 }
 
-# =========================================================================
-# =====[ UPDATE HOMEBREW ]=================================================
-# =========================================================================
 update_homebrew() {
   header "Updating and cleaning Homebrew"
   run_with_spinner " Updating brew" brew update
@@ -93,9 +95,6 @@ update_homebrew() {
   run_with_spinner " Cleaning up" brew cleanup
 }
 
-# =========================================================================
-# =====[ BREW INSTALL PACKAGES ]===========================================
-# =========================================================================
 install_packages() {
   header "Installing CLI tools"
 
@@ -115,9 +114,6 @@ install_packages() {
   done
 }
 
-# =========================================================================
-# =====[ BREW INSTALL --CASK (APPS) ]======================================
-# =========================================================================
 install_apps() {
   header "Installing GUI apps"
 
