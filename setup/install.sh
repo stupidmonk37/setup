@@ -44,8 +44,8 @@ run_with_spinner() {
   fi
 }
 
-
-
+#clone tmux plugin manager
+git clone https://github.com/tmux-plugins/tpm ~/git/setup/dotfiles/.tmux/plugins/tpm
 
 
 

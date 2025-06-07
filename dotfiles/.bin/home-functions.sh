@@ -1,8 +1,10 @@
 #! /bin/bash
 
 run_spinner() {
-   emulate -L zsh
-   setopt NO_MONITOR
+  if [ -n "$ZSH_VERSION" ]; then
+    emulate -L zsh
+    setopt NO_MONITOR
+  fi
 
    local msg="$1"
    shift
@@ -100,7 +102,7 @@ newdev() {
 
   curl -fsSL https://storage.googleapis.com/bkt-c-onboarding-public-us-d9a6/bootstrap.sh | NO_K8S_CONFIG=true bash
   homebrew_update
-  pull_repos1
+  pull_repos
 
   echo ""
   echo "🎉 Done - All the things updated"
