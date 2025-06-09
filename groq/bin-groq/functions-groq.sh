@@ -21,92 +21,6 @@ label-check-rack() {
   done
 }
 
-: <<'ALIASED'
-kval-logs() {
-  local cmd="kubectl-validation logs fetch --validation"
-  local racks=()
-  local all=false
-
-  while [[ $# -gt 0 ]]; do
-    if [[ "$1" == "--all" ]]; then
-      all=true
-      shift
-    elif [[ "$1" == "--racks" ]]; then
-      shift
-      while [[ $# -gt 0 && "$1" != --* ]]; do
-        racks+=("$1")
-        shift
-      done
-    else
-      echo "Unknown option: $1"
-      echo "Usage: kval-logs --all                            # Fetch logs for all nodes/racks"
-      echo "       kval-logs --racks <rack1> [rack2] [...]    # Fetch logs for specific rack(s)"
-      return 1
-    fi
-  done
-
-  if $all; then
-    cmd+=" --all"
-  elif [[ ${#racks[@]} -gt 0 ]]; then
-    cmd+=" ${(j: :)${racks[@]}}"
-  else
-    echo "Missing required flag."
-    echo "Usage: kval-logs --all                            # Fetch logs for all nodes/racks"
-    echo "       kval-logs --racks <rack1> [rack2] [...]    # Fetch logs for specific rack(s)"
-    return 1
-  fi
-
-  eval "$cmd"
-}
-ALIASED
-
-: <<'SCRIPTED'
-kval-status() {
-  local cmd="kubectl validation status"
-  local racks=()
-  local only_failed=false
-  local all=false
-
-  while [[ $# -gt 0 ]]; do
-    if [[ "$1" == "--all" ]]; then
-      all=true
-      shift
-    elif [[ "$1" == "--failed" ]]; then
-      only_failed=true
-      shift
-    elif [[ "$1" == "--racks" ]]; then
-      shift
-      while [[ $# -gt 0 && "$1" != --* ]]; do
-        racks+=("$1")
-        shift
-      done
-    else
-      echo "Unknown option: $1"
-      echo "Usage: kval-status --all                            # Show validation status for all nodes"
-      echo "       kval-status --racks <rack1> [rack2] [...]    # Show status for specific racks"
-      echo "       kval-status --failed                         # Show only failed validations"
-      return 1
-    fi
-  done
-
-  if $all; then
-    cmd="kubectl validation status"
-  elif [[ ${#racks[@]} -gt 0 ]]; then
-    cmd+=" --racks ${(j:,:)"${racks[@]}"}"
-  elif $only_failed; then
-    cmd+=" --only-failed"
-  else
-    echo "Missing required flag."
-    echo "Usage: kval-status --all                            # Show validation status for all nodes"
-    echo "       kval-status --racks <rack1> [rack2] [...]    # Show status for specific racks"
-    echo "       kval-status --failed                         # Show only failed validations"
-    return 1
-  fi
-
-  eval "$cmd"
-}
-SCRIPTED
-
 k8s-switch() {
   echo "🔍 Select a Kubernetes context:"
   local context=$(kubectl config get-contexts -o name | fzf --prompt="Context > ")
@@ -169,37 +83,6 @@ kracks() {
     return 1
   fi
 }
-
-: <<'GV_TUI_DUP'
-kcheck() {
-    if [ "$#" -eq 0 ]; then
-        echo "Usage: kcheck <rack1> [rack2] [...]"
-        return 1
-    fi
-
-    local racks=("$@")
-
-    echo "\nRack information:"
-    echo "=========================="
-    local rack_conditions="NR == 1"
-    for rack in "${racks[@]}"; do
-        rack_conditions+=" || \$1 == \"$rack\""
-    done
-    kubectl racks -o wide | awk "$rack_conditions"
-
-    echo "\nNode status:"
-    echo "=========================="
-    local node_conditions="NR == 1"
-    for rack in "${racks[@]}"; do
-        node_conditions+=" || \$1 ~ /^${rack}-/"
-    done
-    kubectl get nodes | awk "$node_conditions"
-
-    echo "\nValidation status:"
-    echo "=========================="
-    kubectl validation status --racks "$(IFS=,; echo "${racks[*]}")"
-}
-GV_TUI_DUP
 
 # Get logs from failed pods
 # Append strings to filter the output

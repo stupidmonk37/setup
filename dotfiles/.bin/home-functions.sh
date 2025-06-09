@@ -187,10 +187,6 @@ fbfind() {
   [ -n "$file" ] && bat --theme="gruvbox-dark" --plain --color=always "$file"
 }
 
-fh() {
-  eval "$(history | fzf | sed 's/ *[0-9]* *//')"
-}
-
 fnotes() {
   bat --theme="gruvbox-dark" --style=plain "$(find ~/git/setup/groq/notes-groq/* -type f 2> /dev/null | fzf-tmux --exact -p 70%,50% --preview 'bat --theme="gruvbox-dark" --style=plain --color=always {}' --preview-window=right:50%)"
 }

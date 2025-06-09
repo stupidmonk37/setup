@@ -1,4 +1,5 @@
 #alias kval-logs="kubectl-validation logs fetch --validation "
+alias bin-groq="cd $HOME/git/setup/groq/bin-groq"
 alias kval-retry="kubectl-validation retry --validation"
 alias kval-logs="kubectl-validation logs fetch --validation"
 alias tui="cd ~/git/dc-tools/tools/gv-tui"
