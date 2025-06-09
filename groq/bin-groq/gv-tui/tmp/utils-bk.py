@@ -22,7 +22,7 @@ COLOR_MAP = {
     "green": {"success", "healthy"},
     "blue": {"in progress", "running"},
     "cyan": {"pending"},
-    "white": {"not made"},
+    "bright white": {"not made"},
     "yellow": {"not started", "info"},
     "red": {"failure", "fault", "warning(s)", "failed-retryable", "notready", "failed"},
 }
@@ -46,16 +46,8 @@ def colorize(text: str) -> str:
 # ====================================================================================================
 # ===== KUBECTL JSON HELPERS =========================================================================
 # ====================================================================================================
-def kubectl_get_json(name: str) -> dict:
-    cmd = [
-        "kubectl", "get", "groqvalidations.validation.groq.io", name,
-        "-n", "groq-system", "-o", "json"
-    ]
-    return json.loads(subprocess.check_output(cmd, text=True))
-
-
 def kubectl_get_json_resource(resource: str) -> dict:
-    cmd = ["kubectl", "get", resource, "-o", "json"]
+    cmd = ["kubectl", "get", resource, "-o", "json", "-n", "groq-system"]
     return json.loads(subprocess.check_output(cmd, text=True))
 
 
@@ -107,15 +99,25 @@ def process_node_validations(rack_name: str, validations: dict) -> dict:
     summary = {}
 
     for test_name, nodes_data in validations.items():
-        node_statuses = {}
+        node_group = {}
         for i in range(1, 10):
             short = f"gn{i}"
             full = f"{rack_name}-{short}"
-            pdata = nodes_data.get(full, {})
-            status_info = determine_phase_status(pdata)
-            status_info.setdefault("phase", pdata.get("phase", "Unknown"))
-            status_info["validator"] = test_name
-            node_statuses[short] = status_info
+            node_group[short] = nodes_data.get(full, {})
+
+        phases = determine_validation_phases(node_group)
+
+        node_statuses = {}
+        for phase_info in phases:
+            node_name = phase_info["phase"]
+            node_statuses[node_name] = {
+                "results_status": phase_info["status"],
+                "class": phase_info.get("class"),
+                "started_at": phase_info.get("started_at"),
+                "phase": node_group[node_name].get("phase", "Unknown"),
+                "validator": test_name,
+            }
+
         summary[test_name] = node_statuses
 
     return summary
@@ -159,7 +161,6 @@ def determine_validation_phases(node_groups: dict) -> list[dict]:
 
 
 
-
 # ====================================================================================================
 # ===== DISPLAY TABLES ===============================================================================
 # ====================================================================================================
@@ -198,7 +199,7 @@ def display_node_table(rack_names: list[str], render: bool = True) -> list[Table
 
             with ThreadPoolExecutor(max_workers=9) as executor:
                 results = executor.map(
-                    lambda node: (node, kubectl_get_json(node).get("status", {}).get("validations", {})),
+                    lambda node: (node, kubectl_get_json_validation(node).get("status", {}).get("validations", {})),
                     node_names
                 )
 
@@ -244,7 +245,7 @@ def display_rack_table(rack_names: list[str], render: bool = True) -> list[Table
 
     for rack_name in rack_names:
         try:
-            rack_data = kubectl_get_json(rack_name)
+            rack_data = kubectl_get_json_validation(rack_name)
             table = Table(title=f"{rack_name} Validation Status", title_style="bold cyan")
             for col in ("Validator", "Phase", "Status", "Started At"):
                 table.add_column(col)
@@ -263,7 +264,7 @@ def display_rack_table(rack_names: list[str], render: bool = True) -> list[Table
                         f"[cyan]{validator_name}[/cyan]",
                         f"[white]{phase.get('phase', 'N/A')}[/white]",
                         colorize(phase.get('status', 'N/A')),
-                        f"[white]{format_timestamp(phase.get('started_at', '-'))}[/white]"
+                        f"[white]{format_timestamp(phase.get('started_at', '-'))}[/white]",
                     )
 
                 last_validator = validator_name
@@ -291,7 +292,7 @@ def display_crossrack_table(rack_names: list[str], render: bool = True) -> list[
 
     for rack_name in rack_names:
         try:
-            xrk_data = kubectl_get_json(rack_name)
+            xrk_data = kubectl_get_json_validation(rack_name)
             table = Table(title=f"{rack_name} Validation Status", title_style="bold cyan")
             for col in ("Validator", "Phase", "Status", "Started At"):
                 table.add_column(col)

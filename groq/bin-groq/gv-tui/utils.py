@@ -1,10 +1,10 @@
-import argparse
 import json
 import re
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from rich.console import Console
 from rich.table import Table
+from datetime import datetime
 
 def format_timestamp(ts: str) -> str:
     try:
