@@ -21,6 +21,9 @@ label-check-rack() {
   done
 }
 
+
+# Switch to a different Kubernetes context and namespace
+# (ie k8s-switch)
 k8s-switch() {
   echo "🔍 Select a Kubernetes context:"
   local context=$(kubectl config get-contexts -o name | fzf --prompt="Context > ")
@@ -37,6 +40,9 @@ k8s-switch() {
   echo "✅ Switched to context: $context with namespace: $namespace"
 }
 
+
+# Get the status of a list of nodes
+# (ie knodes c1r1 c1r2)
 knodes() {
   local condition='NR == 1'
   for rack in "$@"; do
@@ -46,6 +52,9 @@ knodes() {
   kubectl get nodes | awk "$condition"
 }
 
+
+# Get the status of a list of racks
+# (ie kracks c1r1 c1r2)
 kracks() {
   local all=false
   local racks=()
@@ -83,6 +92,7 @@ kracks() {
     return 1
   fi
 }
+
 
 # Get logs from failed pods
 # Append strings to filter the output
@@ -123,7 +133,7 @@ k-tspd() {
     for rack in "${racks[@]}"; do
         echo "$rack $action tspd pod"
         kubectl "$action" $headers \
-            "$(
+            $(
                 echo {1..9} | \
                     xargs -n 1 | \
                     parallel -j 9 kubectl get pod \
@@ -132,9 +142,10 @@ k-tspd() {
                         --field-selector spec.nodeName="${rack}-gn{}" \
                         --no-headers \
                         -o name
-            )"
+            )
     done
 }
+
 
 # Execute IPMI power commands on a node
 # (ie node_ipmi c1r1)
@@ -144,11 +155,12 @@ knodes-ipmi() {
     local ipmi_cmd="${2:-"status"}"
     [ -z "$node" ] && { echo "Please provide node name (short name)."; return 1; }
     kc_context="$(kubectl config current-context)"
-    dc="${dc:-${kc_context%-*}}"
-    fqdn="${node}-bmc.${dc}.groq.net"
+    #dc="${dc:-${kc_context%-*}}"
+    fqdn="${node}-bmc.${kc_context}.groq.net"
 
     ipmitool -H "$fqdn" -U root -P GroqRocks1 power "$ipmi_cmd"
 }
+
 
 # Function to execute IPMI commands on all nodes in specified racks
 # The default action is 'status'
@@ -185,17 +197,17 @@ kracks-ipmi() {
     
     bmc_names=()
     kc_context="$(kubectl config current-context)"
-    domain="${kc_context%-*}"
+    #dc="${dc:-${kc_context%-*}}"
     
     for rack in "${RACKS[@]}"; do
         for N in {1..9}; do
-            bmc_names+=("${rack}-gn${N}-bmc.${domain}.groq.net")
+            bmc_names+=("${rack}-gn${N}-bmc.${kc_context}.groq.net")
         done
     done
     
     case "$ipmi_action" in
         status) 
-            echo "${bmc_names[@]}" | xargs -n1 | parallel -j 60 echo '{} $(digshort {}) $(ipmitool -H {} -U root -P GroqRocks1 power status)' | sort -V ;;
+            echo "${bmc_names[@]}" | xargs -n1 | parallel -j 60 echo '{} $(dig +short {}) $(ipmitool -H {} -U root -P GroqRocks1 power status)' | sort -V ;;
         cycle) 
             echo "${bmc_names[@]}" | xargs -n1 | parallel -j 60 echo '{} $(ipmitool -H {} -U root -P GroqRocks1 power cycle)' | sort -V ;;
         on)
@@ -216,6 +228,7 @@ kracks-ipmi() {
     esac
 }
 
+
 # Open a BMC console for a single node
 # (ie node_console c1r1)
 #node_console() {
@@ -228,30 +241,25 @@ kracks-ipmi() {
 #    ipmiconsole -h "$fqdn" -u root -p GroqRocks1
 #}
 
-# Get the tspd image versions of all nodes
-# All nodes should be running the same tspd image
-k-tspd-images() {
-    kc get pods -l app=tspd -o json | \
-        jq -r '
-            .items[]
-            | [.spec.nodeName, (
-                [.status.containerStatuses[]
-                | select(.name == "agent")][0].imageID)]
-                | @tsv' | \
-        sort -k 2 -r
-}
 
 # Get Anodizer leases based on the current context
 # (ie get_leases | jq -r 'select(.hostname|test("c1r1")) | [.hostname, .ip] | @tsv'
 k-get-leases() {
+    local filter="$1"
     kc_context="$(kubectl config current-context)"
-    dc="${dc:-${kc_context%-*}}"
-    curl -s "http://anodizer-api.${dc}.groq.net/api/v1/dhcp/leases" | jq '.active[]'
-}
 
-# Get the status of a list of racks
-k-get-racks() {
-    local racks=("$@")
-    echo "${racks[@]}" | xargs -n 1 | \
-        parallel -j 60 kubectl get nodes -o wide --no-headers -l topology.groq.io/rack="{}" | sort -V
+    if [ -n "$filter" ]; then
+        {
+            echo -e "HOSTNAME\tIP\tMAC\tSTATUS"
+            curl -s "http://anodizer-api.${kc_context}.groq.net/api/v1/dhcp/leases" | \
+                jq -r --arg f "$filter" '
+                    .active[]
+                    | select(.hostname | test($f))
+                    | [.hostname, .ip, .mac, .status]
+                    | @tsv' | sort
+        } | column -t -s $'\t'
+    else
+        curl -s "http://anodizer-api.${kc_context}.groq.net/api/v1/dhcp/leases" | \
+            jq '.active[]'
+    fi
 }
