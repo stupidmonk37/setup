@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import subprocess
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from rich.console import Console
@@ -156,6 +157,30 @@ def main():
         print(f"           Nodes Ready: {summary['ready_nodes']}/{summary['total_nodes']} " f"({summary['ready_ratio'] * 100:.2f}%)")
         print(f"       Validated Racks: {summary['racks_complete']}/{summary['total_racks']} " f"({summary['racks_ratio'] * 100:.2f}%)")
         print(f"  Validated Crossracks: {summary['xrk_complete']}/{summary['total_racks']} " f"({summary['xrk_ratio'] * 100:.2f}%)")
+
+        try:
+            result = subprocess.run(
+                ["kubectl", "validation", "status", "--only-failed"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=True
+            )
+            output_lines = result.stdout.splitlines()
+            start_index = None
+
+            for i, line in enumerate(output_lines):
+                if line.lstrip().startswith("Some failures were identified. To inspect the logs, run:"):
+                    start_index = i
+                    break
+
+            if start_index is not None:
+                print("\n" + "\n".join(output_lines[start_index:]))
+            else:
+                print("\n🎉 No failed validations found! 🎉")
+        except subprocess.CalledProcessError as e:
+            print("Error running validation command:")
+            print(e.stderr)
 
 
 if __name__ == "__main__":

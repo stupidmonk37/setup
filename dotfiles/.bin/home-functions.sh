@@ -89,7 +89,7 @@ pull_repos() {
   done
 
   if (( updated > 0 || failed > 0 )); then
-    echo "🎉 Done: $updated updated, $skipped up to date, $failed failed."
+    echo "🗂️ Done: $updated updated, $skipped up to date, $failed failed."
   else
     echo "✅ All $skipped repositories were already up to date."
   fi
