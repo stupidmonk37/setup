@@ -1,0 +1,49 @@
+# functions
+- label-check-rack
+
+- knodes
+
+- kracks
+
+- k-tspd
+
+- knodes-ipmi
+
+- kracks-ipmi
+
+- k-get-leases
+
+# scripts
+- clean_racks.sh
+
+- gv_tui.py
+
+- gv_cli.py
+
+- kval_status.sh
+
+- new_validation.sh
+
+- xt_find_c2c_connection.py
+
+- check_racks.sh
+
+- fixbmcpw.sh
+
+# aliases
+- kval-logs
+
+- kval-retry
+
+- bin-groq
+
+- tui
+
+- conman
+
+- kc
+
+- kpods
+
+- klist
+

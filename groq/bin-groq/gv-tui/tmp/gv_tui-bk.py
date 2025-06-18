@@ -1,27 +1,24 @@
+#! /usr/bin/env python3
+
 import asyncio
-import re
 import contextlib
+import re
 import time
 from datetime import datetime
 from functools import lru_cache
 from rich.table import Table
 from textual.app import App, ComposeResult
 from textual.containers import Container
-from textual.widgets import Header, Footer, Tabs, Tab, RichLog, Input, Button
+from textual.widgets import Footer, Tabs, Tab, RichLog, Input, Button
 
-from data_cluster import is_rack_name, is_xrk_name
 from data_cluster import get_data_cluster
-from data_rack import display_rack_table
-from data_node import build_node_table, display_node_table
-from data_crossrack import display_crossrack_table
+from utils import(
+    colorize, is_rack_name, is_xrk_name,
+    display_crossrack_table, display_rack_table,
+    display_node_table, display_cluster_table,
+)
 
-from utils import COLOR_MAP, STATUS_COLOR_LOOKUP, colorize, kubectl_get_json, extract_rack_prefix, is_node_name, is_rack_name, is_xrk_name, format_timestamp, display_crossrack_table, display_rack_table, build_cluster_table
 
-
-
-# ====================================================================================================
-# ===== UNIQUE =======================================================================================
-# ====================================================================================================
 VALIDATION_RULES = {
     "Nodes": (is_rack_name, "Rack", display_node_table),
     "Racks": (is_rack_name, "Rack", display_rack_table),
@@ -32,44 +29,36 @@ VALIDATION_RULES = {
 TAB_SEARCH_ENABLED = {"Nodes", "Racks", "Cross-Racks"}
 
 
-
-# ====================================================================================================
-# ===== DETERMINE WHICH TABLE TO PRINT - NODE / RACK / CROSSRACK ==========================DONE=======
-# ====================================================================================================
-async def table_chooser(output: RichLog, tab: str, entity_ids: list[str]):
-    validator, label, _ = VALIDATION_RULES[tab]
+async def table_chooser(output: RichLog, tab: str, rack_names: list[str]):
     try:
-        await render_table(output, tab, entity_ids, label)
+        if tab == "Nodes":
+            results = await asyncio.to_thread(display_node_table, rack_names, render=False)
+        elif tab == "Racks":
+            results = await asyncio.to_thread(display_rack_table, rack_names, render=False)
+        elif tab == "Cross-Racks":
+            results = await asyncio.to_thread(display_crossrack_table, rack_names, render=False)
+        else:
+            write_message(output, "Invalid tab.", "red")
+            return
+
+        if (
+            not results
+            or not isinstance(results, list)
+            or not isinstance(results[0], Table)
+        ):
+            write_message(output, f"No data found for '{', '.join(rack_names)}'", "yellow")
+            return
+
+        for table in results:
+            output.write(table)
+
     except Exception as e:
         write_message(output, f"❌ Error: {e}", "red")
 
 
-async def render_table(output: RichLog, tab: str, entity_ids: list[str], label: str):
-    if tab == "Nodes":
-        results = await asyncio.to_thread(display_node_table, entity_ids, render=False)
-    elif tab == "Racks":
-        results = await asyncio.to_thread(display_rack_table, entity_ids, render=False)
-    elif tab == "Cross-Racks":
-        results = await asyncio.to_thread(display_crossrack_table, entity_ids, render=False)
-    else:
-        return
-
-    if (
-        not results
-        or not isinstance(results, list)
-        or not isinstance(results[0], Table)
-    ):
-        write_message(output, f"No data found for '{', '.join(entity_ids)}'", "yellow")
-        return
-
-    for table in results:
-        output.write(table)
-
-
-
-
 def write_message(output: RichLog, text: str, style: str = "yellow"):
     output.write(f"[{style}]{text}[/{style}]")
+
 
 def validate_input(tab: str, input_value: str):
     if tab not in VALIDATION_RULES:
@@ -82,46 +71,39 @@ def validate_input(tab: str, input_value: str):
     return None
 
 
-@lru_cache(maxsize=1)
-def cached_get_data_cluster():
-    return get_data_cluster()
-
-# ===== APP
 class StatusDashboard(App):
     CSS_PATH = "dashboard.css"
     TITLE = "Groq Cluster Validation Dashboard"
-    BINDINGS = [("q", "quit", "Quit")]
+    BINDINGS = [
+        ("q", "quit", "Quit"),
+        ("r", "refresh", "Refresh")
+    ]
     refresh_task = None
 
     def compose(self) -> ComposeResult:
-        yield Header()
         yield Tabs(Tab("Cluster"), *[Tab(name) for name in VALIDATION_RULES], id="tabs")
         yield Container(
-            Container(Input(placeholder="Enter hostname or ID...", id="search-input"),
-                      Button("Search", id="search-button", variant="primary"),
-                      id="search-container"),
-            RichLog(id="main-output", highlight=True, wrap=False),
-            id="scrollable-content",
+            Container(Input(placeholder="Enter <rack> or <rack1>-<rack2>...", id="search-input"), Button("Search", variant="primary", id="search-button"), id="search-container"),
+            RichLog(highlight=True, wrap=False, id="main-output"), id="scrollable-content",
         )
         yield Footer()
 
-    async def on_mount(self):
-        self.query_one("#search-container").display = False
-        self.query_one("#main-output", RichLog).write("Select a tab ^^^.")
-        self.active_tab = "Cluster"
-        self.refresh_task = asyncio.create_task(self.refresh_loop())
+    # 'r' to force refresh
+    async def action_refresh(self):
+        await self.refresh_active_tab()
 
-    async def on_shutdown_request(self):
-        if self.refresh_task:
-            self.refresh_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self.refresh_task
-
-    async def refresh_loop(self):
+    # automatically refresh every 60 seconds
+    async def auto_refresh(self):
         while True:
             await asyncio.sleep(60)
-            cached_get_data_cluster.cache_clear()
             await self.refresh_active_tab()
+
+
+    async def on_mount(self):
+        self.query_one("#search-container").display = False
+        self.active_tab = "Cluster"
+        self.refresh_task = asyncio.create_task(self.auto_refresh())
+
 
     async def refresh_active_tab(self):
         output = self.query_one("#main-output", RichLog)
@@ -130,10 +112,11 @@ class StatusDashboard(App):
             await self.render_cluster_tab(output)
         elif self.active_tab in TAB_SEARCH_ENABLED:
             input_value = self.query_one("#search-input", Input).value.strip()
-            if input_value:
-                entity_ids = input_value.split()
+            rack_names = input_value.split()
+            if rack_names:
                 output.clear()
-                await table_chooser(output, self.active_tab, entity_ids)
+                await table_chooser(output, self.active_tab, rack_names)
+
 
     async def on_tabs_tab_activated(self, event: Tabs.TabActivated):
         self.active_tab = event.tab.label
@@ -147,6 +130,7 @@ class StatusDashboard(App):
             self.query_one("#search-container").display = False
             await self.render_cluster_tab(output)
 
+
     async def on_button_pressed(self, event: Button.Pressed):
         if event.button.id != "search-button":
             return
@@ -155,8 +139,9 @@ class StatusDashboard(App):
         output = self.query_one("#main-output", RichLog)
         output.clear()
 
-        if not input_value:
-            write_message(output, "Please enter one or more IDs.")
+        rack_names = input_value.split()
+        if not rack_names:
+            write_message(output, "Please enter one or more rack.")
             return
 
         error = validate_input(self.active_tab, input_value)
@@ -164,19 +149,31 @@ class StatusDashboard(App):
             write_message(output, error)
             return
 
-        entity_ids = input_value.split()
-        await table_chooser(output, self.active_tab, entity_ids)
+        await table_chooser(output, self.active_tab, rack_names)
+
 
     async def render_cluster_tab(self, output: RichLog):
-        start = time.perf_counter()
-        status = await asyncio.to_thread(cached_get_data_cluster)
-        print(f"Cluster status fetched in {time.perf_counter() - start:.2f}s")
-        table = build_cluster_table(status)
+        data = await asyncio.to_thread(get_data_cluster)
+        table = display_cluster_table(data, render=False)
         output.write(table)
 
+        # print summary under table
+        summary = data.get("summary", {})
+        output.write("")
+        output.write("Summary:")
+
+        output.write(f"            Rack Total: {summary.get('total_racks', 0)}")
+        output.write(f"           Nodes Ready: {summary.get('ready_nodes', 0)}/{summary.get('total_nodes', 0)} " f"({summary.get('ready_ratio', 0.0) * 100:.2f}%)")
+        output.write(f"       Validated Racks: {summary.get('racks_complete', 0)}/{summary.get('total_racks', 0)} " f"({summary.get('racks_ratio', 0.0) * 100:.2f}%)")
+        output.write(f"  Validated Crossracks: {summary.get('xrk_complete', 0)}/{summary.get('total_racks', 0)} " f"({summary.get('xrk_ratio', 0.0) * 100:.2f}%)")
 
 
 
+    async def on_shutdown_request(self):        
+        if self.refresh_task:
+            self.refresh_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self.refresh_task
 
 
 if __name__ == "__main__":

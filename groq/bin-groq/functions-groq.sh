@@ -2,6 +2,58 @@
 
 #set +m  # Disable job control messages
 
+k-pod-check() {
+  local base_nodes=("$@")
+
+  local data
+  data=$( (
+    for base in "${base_nodes[@]}"; do
+      for i in $(seq 1 9); do
+        node="${base}-gn${i}"
+        kubectl get pods --field-selector spec.nodeName="$node" -o json 2>/dev/null || true
+      done
+    done
+  ) | jq -r '
+    .items[]? |
+    select(.status.phase != "Succeeded") |
+    (.status.phase) as $status |
+    (.metadata.name) as $name |
+    (.spec.nodeName) as $node |
+    ([.status.containerStatuses[]?.ready] | map(if . then 1 else 0 end) | add) as $ready_count |
+    ([.status.containerStatuses[]?] | length) as $total_count |
+    ($node | capture("c(?<cluster>\\d+)r(?<rack>\\d+)-gn(?<gn>\\d+)")) as $node_match |
+    [
+      $name,
+      ($node_match.gn | tonumber),
+      "\($ready_count)/\($total_count)",
+      $status,
+      $node
+    ] | @tsv
+  ')
+
+  {
+    echo -e "NAME\tREADY\tSTATUS\tNODE"
+    echo -e "$data" | sort -t $'\t' -k1,1 -k2,2n | cut -f1,3-5
+  } | column -t -s $'\t'
+
+  echo
+  echo "Summary:"
+
+  echo "$data" | cut -f1 \
+    | sed -E 's/-[a-z0-9]{5}$//' \
+    | sort | uniq -c | awk '
+      {
+        names[$2] = $1
+        if (length($2) > max_len) max_len = length($2)
+      }
+      END {
+        for (name in names) {
+          printf "%" max_len "s: %s pods\n", name, names[name]
+        }
+      }' | sort
+}
+
+
 # Check the label of a rack's nodes
 # (ie label-check-rack c1r1)
 label-check-rack() {
@@ -19,25 +71,6 @@ label-check-rack() {
       fi
     done
   done
-}
-
-
-# Switch to a different Kubernetes context and namespace
-# (ie k8s-switch)
-k8s-switch() {
-  echo "🔍 Select a Kubernetes context:"
-  local context=$(kubectl config get-contexts -o name | fzf --prompt="Context > ")
-  [[ -z "$context" ]] && echo "❌ No context selected." && return
-
-  kubectl config use-context "$context"
-
-  echo "📦 Fetching namespaces for context: $context"
-  local namespace=$(kubectl get namespaces -o jsonpath='{.items[*].metadata.name}' 2>/dev/null | tr ' ' '\n' | fzf --prompt="Namespace > ")
-  [[ -z "$namespace" ]] && echo "⚠️ No namespace selected — keeping default." && return
-
-  kubectl config set-context --current --namespace="$namespace"
-
-  echo "✅ Switched to context: $context with namespace: $namespace"
 }
 
 
