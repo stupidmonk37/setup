@@ -1,10 +1,10 @@
-import argparse
 import json
 import re
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from rich.console import Console
 from rich.table import Table
+from datetime import datetime
 
 def format_timestamp(ts: str) -> str:
     try:
@@ -57,6 +57,22 @@ def kubectl_get_json_validation(name: str = None) -> dict:
         cmd.append(name)
     cmd.extend(["-n", "groq-system", "-o", "json"])
     return json.loads(subprocess.check_output(cmd, text=True))
+
+
+
+def get_kubectl_context() -> str:
+    """Returns the current kubectl context, or 'Unknown Context' on failure."""
+    try:
+        result = subprocess.run(
+            ["kubectl", "config", "current-context"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True
+        )
+        return result.stdout.strip()
+    except subprocess.CalledProcessError:
+        return "Unknown Context"
 
 
 
@@ -165,7 +181,9 @@ def determine_validation_phases(node_groups: dict) -> list[dict]:
 # ===== DISPLAY TABLES ===============================================================================
 # ====================================================================================================
 def display_cluster_table(data, rack_filter=None, render=True) -> Table | None:
-    table = Table(title="Groq Validation Status", title_style="bold")
+    context = get_kubectl_context()
+    table = Table(title=f"Groq Validation Status - {context}",
+            header_style="white")
     for col in ("Rack", "Health", "Node GV", "Rack GV", "XRK Name", "XRK GV"):
         table.add_column(col)
 
@@ -209,7 +227,9 @@ def display_node_table(rack_names: list[str], render: bool = True) -> list[Table
 
             dashboard = process_node_validations(rack_name, validations)
 
-            table = Table(title=f"Node Validation Status - {rack_name}", title_style="bold cyan")
+            context = get_kubectl_context()
+            table = Table(title=f"{rack_name} - Node Validation Status - {context}",
+            header_style="white")
             table.add_column("Validator", style="cyan")
             for i in range(1, 10):
                 table.add_column(f"gn{i}", justify="center")
@@ -246,7 +266,9 @@ def display_rack_table(rack_names: list[str], render: bool = True) -> list[Table
     for rack_name in rack_names:
         try:
             rack_data = kubectl_get_json_validation(rack_name)
-            table = Table(title=f"{rack_name} Validation Status", title_style="bold cyan")
+            context = get_kubectl_context()
+            table = Table(title=f"{rack_name} - Rack Validation Status - {context}",
+            header_style="white")
             for col in ("Validator", "Phase", "Status", "Started At"):
                 table.add_column(col)
 
@@ -293,7 +315,9 @@ def display_crossrack_table(rack_names: list[str], render: bool = True) -> list[
     for rack_name in rack_names:
         try:
             xrk_data = kubectl_get_json_validation(rack_name)
-            table = Table(title=f"{rack_name} Validation Status", title_style="bold cyan")
+            context = get_kubectl_context()
+            table = Table(title=f"{rack_name} - Cross-Rack - Validation Status - {context}",
+            header_style="white")
             for col in ("Validator", "Phase", "Status", "Started At"):
                 table.add_column(col)
 

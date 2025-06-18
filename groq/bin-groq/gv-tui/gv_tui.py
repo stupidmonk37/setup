@@ -11,11 +11,13 @@ from textual.app import App, ComposeResult
 from textual.containers import Container
 from textual.widgets import Footer, Tabs, Tab, RichLog, Input, Button
 
-from data_cluster import get_data_cluster
 from utils import(
-    colorize, is_rack_name, is_xrk_name,
+    is_rack_name, is_xrk_name,
     display_crossrack_table, display_rack_table,
     display_node_table, display_cluster_table,
+    get_data_cluster,
+    print_cluster_summary,
+    print_failed_validations,
 )
 
 
@@ -126,9 +128,11 @@ class StatusDashboard(App):
         if self.active_tab in TAB_SEARCH_ENABLED:
             self.query_one("#search-container").display = True
             output.write("Enter a hostname above and click Search.")
+
         else:
             self.query_one("#search-container").display = False
             await self.render_cluster_tab(output)
+
 
 
     async def on_button_pressed(self, event: Button.Pressed):
@@ -156,17 +160,9 @@ class StatusDashboard(App):
         data = await asyncio.to_thread(get_data_cluster)
         table = display_cluster_table(data, render=False)
         output.write(table)
-
-        # print summary under table
-        summary = data.get("summary", {})
         output.write("")
-        output.write("Summary:")
-
-        output.write(f"            Rack Total: {summary.get('total_racks', 0)}")
-        output.write(f"           Nodes Ready: {summary.get('ready_nodes', 0)}/{summary.get('total_nodes', 0)} " f"({summary.get('ready_ratio', 0.0) * 100:.2f}%)")
-        output.write(f"       Validated Racks: {summary.get('racks_complete', 0)}/{summary.get('total_racks', 0)} " f"({summary.get('racks_ratio', 0.0) * 100:.2f}%)")
-        output.write(f"  Validated Crossracks: {summary.get('xrk_complete', 0)}/{summary.get('total_racks', 0)} " f"({summary.get('xrk_ratio', 0.0) * 100:.2f}%)")
-
+        print_cluster_summary(output, data["summary"])
+        await asyncio.to_thread(print_failed_validations, output)
 
 
     async def on_shutdown_request(self):        

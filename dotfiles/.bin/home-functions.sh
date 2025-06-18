@@ -1,5 +1,40 @@
 #! /bin/bash
 
+# Run a command in all panes of a tmux session
+# (ie tmux_all_panes "kubectl get pods")
+tmux_all_panes() {
+  local cmd="$*"
+  if [ -z "$cmd" ]; then
+    echo "❌ No command provided."
+    echo "Usage: run_in_all_panes <command>"
+    return 1
+  fi
+
+  for pane in $(tmux list-panes -F '#P'); do
+    tmux send-keys -t "$pane" "$cmd" C-m
+  done
+}
+
+
+# Switch to a different Kubernetes context and namespace
+# (ie k8s-switch)
+k8s-switch() {
+  echo "🔍 Select a Kubernetes context:"
+  local context=$(kubectl config get-contexts -o name | fzf --prompt="Context > ")
+  [[ -z "$context" ]] && echo "❌ No context selected." && return
+
+  kubectl config use-context "$context"
+
+  echo "📦 Fetching namespaces for context: $context"
+  local namespace=$(kubectl get namespaces -o jsonpath='{.items[*].metadata.name}' 2>/dev/null | tr ' ' '\n' | fzf --prompt="Namespace > ")
+  [[ -z "$namespace" ]] && echo "⚠️ No namespace selected — keeping default." && return
+
+  kubectl config set-context --current --namespace="$namespace"
+
+  echo "✅ Switched to context: $context with namespace: $namespace"
+}
+
+
 run_spinner() {
   if [ -n "$ZSH_VERSION" ]; then
     emulate -L zsh
