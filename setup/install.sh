@@ -5,7 +5,7 @@ sudo -v
 
 source "$HOME/git/setup/dotfiles/.bin/home-functions.sh"
 
-WORK_ENV=true
+WORK_ENV=false
 JOB=groq
 SETUP_DIR="$HOME/git/setup"
 DOTFILE_FILE=(.vim .vimrc .zshrc .zprofile .aliases .bin .tmux.conf .p10k.zsh)
@@ -43,21 +43,6 @@ run_with_spinner() {
     printf "\r     ❌ Command failed\n"
   fi
 }
-
-#clone tmux plugin manager
-git clone https://github.com/tmux-plugins/tpm ~/git/setup/dotfiles/.tmux/plugins/tpm
-
-
-
-
-
-
-
-
-
-
-
-
 
 create_work_dir() {
     if $WORK_ENV ; then
@@ -118,6 +103,7 @@ run_brew() {
 # ==========================================================================
 # =====[ MAIN SCRIPT ]======================================================
 # ==========================================================================
+#git clone https://github.com/tmux-plugins/tpm ~/git/setup/dotfiles/.tmux/plugins/tpm
 create_work_dir
 symlink_setup
 install_vim_theme

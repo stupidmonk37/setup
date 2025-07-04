@@ -39,19 +39,6 @@ run_with_spinner() {
   spinner
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 install_brew() {
   header "Checking if Homebrew is installed"
   if ! command -v brew &>/dev/null; then
