@@ -5,28 +5,28 @@
     overflow: auto;
     color: $text;
 }
+
 .hidden {
     display: none;
 }
+
 #cluster-scroll {
     height: 40;
     overflow: auto;
 }
 
 #scrollable-content {
-    height: 1fr;           /* take remaining space */
-    overflow-y: auto;      /* enable vertical scrolling */
-    layout: vertical;      /* stack children vertically */
+    height: 1fr;
+    overflow-y: auto;
+    layout: vertical;
 }
-
-
-
 
 #tabs {
     height: 4;
     padding: 1;
     background: $boost;
 }
+
 #search-container {
     padding: 1 1;
     height: auto;
@@ -34,11 +34,13 @@
     width: 100%;
     background: $boost;
 }
+
 #search-input {
     height: 3;
     width: 30%;
     background: $boost;
 }
+
 #search-button {
     height: auto;
     width: auto;

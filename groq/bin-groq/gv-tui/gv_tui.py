@@ -1,9 +1,9 @@
-#! /usr/bin/env python3
-
 import asyncio
 import contextlib
 import re
 import time
+import os
+import sys
 from datetime import datetime
 from functools import lru_cache
 from rich.table import Table
@@ -74,7 +74,11 @@ def validate_input(tab: str, input_value: str):
 
 
 class StatusDashboard(App):
-    CSS_PATH = "dashboard.css"
+    #CSS_PATH = "dashboard.css"
+    if hasattr(sys, "_MEIPASS"):
+        CSS_PATH = os.path.join(sys._MEIPASS, "dashboard.css")
+    else:
+        CSS_PATH = "dashboard.css"
     TITLE = "Groq Cluster Validation Dashboard"
     BINDINGS = [
         ("q", "quit", "Quit"),
