@@ -722,9 +722,9 @@ def get_data_cluster():
 
         rack["pod_health"] = pod_health
 
-    total_nodes = sum(len(r["nodes"]) for r in rack_list)
+    total_nodes = len(rack_list) * 9
     ready_nodes = sum(1 for r in rack_list for ready in r["nodes"].values() if ready)
-    node_complete = sum(1 for r in rack_list if r["node_status"] == "Success")
+    node_complete = sum(1 for r in rack_list if r["node_status"] == "Success") * 9
     rack_complete = sum(1 for r in rack_list if r["rack_status"] == "Success")
     xrk_complete = sum(1 for r in rack_list if r["xrk_status"] == "Success")
     return {
@@ -732,8 +732,8 @@ def get_data_cluster():
             "total_nodes": total_nodes,
             "total_racks": len(rack_list),
             "ready_nodes": ready_nodes,
-            "node_complete": node_complete * 9,
-            "node_ratio": (node_complete * 9) / total_nodes if total_nodes else 0.0,
+            "node_complete": node_complete,
+            "node_ratio": node_complete / total_nodes if total_nodes else 0.0,
             "ready_ratio": ready_nodes / total_nodes if total_nodes else 0.0,
             "racks_complete": rack_complete,
             "racks_ratio": rack_complete / len(rack_list) if len(rack_list) else 0.0,
