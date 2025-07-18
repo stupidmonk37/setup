@@ -31,7 +31,7 @@ EXPECTED_NODES = {f"gn{i}" for i in range(1, 10)}
 COLOR_MAP = {
     "green": {"success", "healthy"},
     "blue": {"in progress", "running"},
-    "cyan": {"pending"},
+    "cyan": {"pending", "started"},
     "bright white": {"not made"},
     "yellow": {"not started", "info"},
     "red": {"failure", "fault", "warning(s)", "failed-retryable", "notready", "failed"},
@@ -142,6 +142,7 @@ def natural_sort_key(s):
     
     return [int(t) if t.isdigit() else t for t in re.split(r'(\d+)', s)]
 
+
 def valid_rack_name(value: str) -> str:
     if not is_rack_name(value):
         raise ValueError(f"Invalid rack format: '{value}'. Must match c<digit>r<digits> (e.g., c0r1)")
@@ -167,16 +168,23 @@ def base_name(pod_name: str) -> str:
 def determine_validation_phases(node_groups: dict) -> list[dict]:
     phases = []
     for node_set, pdata in node_groups.items():
-        phase = pdata.get("phase", "").lower()
-        results = pdata.get("results", [])
-        faults = results[0].get("faults", []) if results else []
-        results_status = results[0].get("status", "") if results else ""
+        phase = pdata.get("phase", "")
+        results = pdata.get("results")
+        if results:
+            first_result = results[0]
+            faults = first_result.get("faults")
+            results_status = first_result.get("status", "")
+
+        else:
+            faults = []
+            results_status = ""
+
         started_at = pdata.get("startedAt")
         if faults:
-            fault_descriptions = sorted({
+            fault_descriptions = sorted(
                 f"{f.get('fault_type', 'Unknown')} ({f.get('component', '?')})"
                 for f in faults
-            })
+            )
             status_text = "; ".join(fault_descriptions)
             phases.append({
                 "phase": node_set,
@@ -203,54 +211,22 @@ def determine_validation_phases(node_groups: dict) -> list[dict]:
 def process_node_validations(rack_name: str, validations: dict) -> dict:
     summary = {}
     for test_name, nodes_data in validations.items():
-        node_group = {}
-        for i in range(1, 10):
-            short = f"gn{i}"
-            full = f"{rack_name}-{short}"
-            node_group[short] = nodes_data.get(full, {})
+        node_group = {
+            f"gn{i}": nodes_data.get(f"{rack_name}-gn{i}", {})
+            for i in range(1, 10)
+        }
 
-        phases = []
-        for node_set, pdata in node_group.items():
-            phase = pdata.get("phase", "").lower()
-            results = pdata.get("results", [])
-            faults = results[0].get("faults", []) if results else []
-            results_status = results[0].get("status", "") if results else ""
-            started_at = pdata.get("startedAt")
-            if faults:
-                fault_descriptions = sorted({
-                    f"{f.get('fault_type', 'Unknown')} ({f.get('component', '?')})"
-                    for f in faults
-                })
-                status_text = "; ".join(fault_descriptions)
-                phases.append({
-                    "phase": node_set,
-                    "status": status_text,
-                    "class": "fault",
-                    "started_at": started_at,
-                })
-
-            else:
-                status_text = (
-                    results_status.replace("-", " ").title()
-                    if results_status else (phase.title() or "Not Started")
-                )
-                phases.append({
-                    "phase": node_set,
-                    "status": status_text,
-                    "class": None,
-                    "started_at": started_at,
-                })
-
-        node_statuses = {}
-        for phase_info in phases:
-            node_name = phase_info["phase"]
-            node_statuses[node_name] = {
+        phases = determine_validation_phases(node_group)
+        node_statuses = {
+            phase_info["phase"]: {
                 "results_status": phase_info["status"],
                 "class": phase_info.get("class"),
                 "started_at": phase_info.get("started_at"),
-                "phase": node_group[node_name].get("phase", "Unknown"),
+                "phase": node_group[phase_info["phase"]].get("phase", "Unknown"),
                 "validator": test_name,
             }
+            for phase_info in phases
+        }
 
         summary[test_name] = node_statuses
 
@@ -260,11 +236,11 @@ def process_node_validations(rack_name: str, validations: dict) -> dict:
 def fetch_validations(rack_name: str) -> dict:
     node_names = [f"{rack_name}-gn{i}" for i in range(1, 10)]
     validations = {}
+    def fetch_node_validation(node):
+        return node, kubectl_get_json_validation(node).get("status", {}).get("validations", {})
+
     with ThreadPoolExecutor(max_workers=9) as executor:
-        results = executor.map(
-            lambda node: (node, kubectl_get_json_validation(node).get("status", {}).get("validations", {})),
-            node_names
-        )
+        results = executor.map(fetch_node_validation, node_names)
 
     for node_name, node_validations in results:
         for test_name, test_data in node_validations.items():
@@ -278,33 +254,29 @@ def fetch_validations(rack_name: str) -> dict:
 # ===== DISPLAY TABLES ===============================================================================
 # ====================================================================================================
 def display_cluster_table(data, rack_filter=None, render=True) -> Table | None:
+    """Renders a table of the cluster status"""
     context = get_kubectl_context()
     table = Table(title=f"Groq Validation Status - {context}", header_style="white")
-    pod_prefixes = []
-    if data["racks"]:
-        for rack in data["racks"]:
-            pod_prefixes.extend(rack.get("pod_health", {}).keys())
-
-        pod_prefixes = sorted(set(pod_prefixes))
-
+    racks = data.get("racks", [])
+    pod_prefixes = sorted({prefix for rack in racks for prefix in rack.get("pod_health", {}).keys()})
     columns = ["Rack", "Health"] + pod_prefixes + ["Node GV", "Rack GV", "XRK Name", "XRK GV"]
     for col in columns:
         table.add_column(col)
 
-    for rack in data["racks"]:
-        if rack_filter and rack["rack"] not in rack_filter:
+    rack_filter_set = set(rack_filter) if rack_filter else None
+    for rack in racks:
+        rack_name = rack.get("rack", "")
+        if rack_filter_set and rack_name not in rack_filter_set:
             continue
 
-        row = [rack["rack"], colorize(rack["health"])]
-        for prefix in pod_prefixes:
-            status = rack.get("pod_health", {}).get(prefix, "-")
-            row.append(colorize(status))
-
+        pod_health = rack.get("pod_health", {})
+        row = [rack_name, colorize(rack.get("health", "-"))]
+        row.extend(colorize(pod_health.get(prefix, "-")) for prefix in pod_prefixes)
         row.extend([
-            colorize(rack["node_status"]),
-            colorize(rack["rack_status"]),
+            colorize(rack.get("node_status", "-")),
+            colorize(rack.get("rack_status", "-")),
             rack.get("xrk_name") or "",
-            colorize(rack.get("xrk_status")),
+            colorize(rack.get("xrk_status", "-")),
         ])
         table.add_row(*row)
 
@@ -316,179 +288,213 @@ def display_cluster_table(data, rack_filter=None, render=True) -> Table | None:
         return table
 
 
-def display_node_table(rack_names: list[str], render: bool = True) -> list[Table] | None:
+def display_node_table(rack_names: list[str], render: bool = True) -> list[Table] | None: # NEW
+    """Fetches and displays per-node validation and pod status tables"""
     console = Console()
     tables = []
-    for rack_name in rack_names:
-        try:
-            validations = fetch_validations(rack_name)
-            dashboard = process_node_validations(rack_name, validations)
-            entries = collect_pod_entries([rack_name])
-            pod_status_map = {}
-            pod_ready_map = {}
-            pod_issues_map = defaultdict(list)
-            pods_seen = defaultdict(set)
-            for name, ready, status, node in entries:
-                pod_base = base_name(name)
-                pod_ready_map[node] = ready
-                pod_status_map[node] = status
-                if pod_base in REQUIRED_POD_TYPES:
-                    pods_seen[node].add(pod_base)
-                    if status.lower() != "running":
-                        pod_issues_map[node].append(f"[yellow]{pod_base} (not running)[/yellow]")
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        futures = {executor.submit(_fetch_node_data, rack_name): rack_name for rack_name in rack_names}
+        for future in as_completed(futures):
+            rack_name = futures[future]
+            try:
+                rack_name, node_data = future.result()
+                if isinstance(node_data, Exception):
+                    raise node_data
 
-            all_nodes = [f"{rack_name}-gn{i}" for i in range(1, 10)]
-            for node in all_nodes:
-                missing = REQUIRED_POD_TYPES - pods_seen[node]
-                for pod_base in missing:
-                    pod_issues_map[node].append(f"[red]{pod_base} (missing)[/red]")
+                table = _build_node_table(rack_name, node_data, render)
+                if table is not None:
+                    tables.append(table)
 
-            per_node_pod_status = defaultdict(dict)
-            for name, _, status, node in entries:
-                pod_base = base_name(name)
-                if pod_base in REQUIRED_POD_TYPES:
-                    per_node_pod_status[node][pod_base] = status
+            except Exception as e:
+                error_msg = f"[red]Error processing rack {rack_name}: {e}[/red]"
+                if render:
+                    console.print(error_msg)
 
-            context = get_kubectl_context()
-            table = Table(title=f"{rack_name} - Node Dashboard - {context}", header_style="white")
-            table.add_column("Validator", style="cyan")
-            for i in range(1, 10):
-                table.add_column(f"gn{i}", justify="center")
+                else:
+                    error_table = Table()
+                    error_table.add_row(error_msg)
+                    tables.append(error_table)
 
-            for validator, nodes in dashboard.items():
-                row = [validator]
-                for i in range(1, 10):
-                    node = f"{rack_name}-gn{i}"
-                    status = nodes.get(f"gn{i}", {}).get("results_status", "N/A")
-                    row.append(colorize(status))
-                table.add_row(*row)
-
-            table.add_section()
-            for pod_base in REQUIRED_POD_TYPES:
-                row = [pod_base]
-                for i in range(1, 10):
-                    node = f"{rack_name}-gn{i}"
-                    if pod_base in per_node_pod_status[node]:
-                        status = per_node_pod_status[node][pod_base]
-
-                    elif pod_base in pod_issues_map[node]:
-                        status = "[red]Missing[/red]"
-
-                    else:
-                        status = "-"
-
-                    row.append(colorize(status))
-
-                table.add_row(*row)
-
-            if render:
-                console.print(table)
-
-            tables.append(table)
-
-        except Exception as e:
-            if render:
-                console.print(f"[red]Error processing rack {rack_name}: {e}[/red]")
-
-            else:
-                tables.append(None)
-
-    return tables if not render else None
+    return None if render else tables
 
 
 def display_rack_table(rack_names: list[str], render: bool = True) -> list[Table] | None:
+    """Fetches and displays validation status for a list of racks"""
     console = Console()
     tables = []
-    for rack_name in rack_names:
-        try:
-            rack_data = kubectl_get_json_validation(rack_name)
-            context = get_kubectl_context()
-            table = Table(title=f"{rack_name} - Rack Validation Status - {context}", header_style="white")
-            for col in ("Validator", "Phase", "Status", "Started At"):
-                table.add_column(col)
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        futures = {executor.submit(_fetch_rack_crossrack_data, rn): rn for rn in rack_names}
+        for future in as_completed(futures):
+            rack_name = futures[future]
+            try:
+                rack_name, rack_data = future.result()
+                if isinstance(rack_data, Exception):
+                    raise rack_data
 
-            validations = rack_data.get("status", {}).get("validations", {})
-            last_validator = None
-            for validator_name, node_groups in validations.items():
-                phases = determine_validation_phases(node_groups)
-                if last_validator:
-                    table.add_section()
+                validations = rack_data.get("status", {}).get("validations", {})
+                table = _build_rack_crossrack_table(rack_name, validations, render)
+                if table is not None:
+                    tables.append(table)
 
-                for phase in phases:
-                    table.add_row(
-                        f"[cyan]{validator_name}[/cyan]",
-                        f"[white]{phase.get('phase', 'N/A')}[/white]",
-                        colorize(phase.get('status', 'N/A')),
-                        f"[white]{format_timestamp(phase.get('started_at', '-'))}[/white]",
-                    )
-
-                last_validator = validator_name
-
-            if render:
-                console.print(table)
-
-            else:
-                tables.append(table)
-
-        except Exception as e:
-            error_msg = f"[red]Error fetching rack {rack_name}: {str(e)}[/red]"
-            if render:
-                console.print(error_msg)
-
-            else:
-                error_table = Table()
-                error_table.add_row(error_msg)
-                tables.append(error_table)
+            except Exception as e:
+                error_msg = f"[red]Error fetching rack {rack_name}: {e}[/red]"
+                if render:
+                    console.print(error_msg)
+                else:
+                    error_table = Table()
+                    error_table.add_row(error_msg)
+                    tables.append(error_table)
 
     return None if render else tables
 
 
 def display_crossrack_table(rack_names: list[str], render: bool = True) -> list[Table] | None:
+    """Fetches and displays validation status for a list of cross-racks"""
     console = Console()
     tables = []
-    for rack_name in rack_names:
-        try:
-            xrk_data = kubectl_get_json_validation(rack_name)
-            context = get_kubectl_context()
-            table = Table(title=f"{rack_name} - Cross-Rack - Validation Status - {context}",
-            header_style="white")
-            for col in ("Validator", "Phase", "Status", "Started At"):
-                table.add_column(col)
 
-            validations = xrk_data.get("status", {}).get("validations", {})
-            last_validator = None
-            for validator_name, node_groups in validations.items():
-                phases = determine_validation_phases(node_groups)
-                if last_validator:
-                    table.add_section()
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        futures = {executor.submit(_fetch_rack_crossrack_data, rn): rn for rn in rack_names}
 
-                for phase in phases:
-                    table.add_row(
-                        f"[cyan]{validator_name}[/cyan]",
-                        f"[white]{phase.get('phase', 'N/A')}[/white]",
-                        colorize(phase.get('status', 'N/A')),
-                        f"[white]{format_timestamp(phase.get('started_at', '-'))}[/white]"
-                    )
+        for future in as_completed(futures):
+            rack_name = futures[future]
+            try:
+                rack_name, xrk_data = future.result()
+                if isinstance(xrk_data, Exception):
+                    raise xrk_data
+                
+                validations = xrk_data.get("status", {}).get("validations", {})
+                table = _build_rack_crossrack_table(rack_name, validations, render)
+                if table is not None:
+                    tables.append(table)
 
-                last_validator = validator_name
-
-            if render:
-                console.print(table)
-
-            else:
-                tables.append(table)
-
-        except Exception as e:
-            error_msg = f"[red]Error fetching rack {rack_name}: {str(e)}[/red]"
-            if render:
-                console.print(error_msg)
-
-            else:
-                error_table = Table()
-                error_table.add_row(error_msg)
-                tables.append(error_table)
+            except Exception as e:
+                error_msg = f"[red]Error fetching rack {rack_name}: {e}[/red]"
+                if render:
+                    console.print(error_msg)
+                else:
+                    error_table = Table()
+                    error_table.add_row(error_msg)
+                    tables.append(error_table)
 
     return None if render else tables
+
+
+def _fetch_node_data(rack_name: str) -> tuple[str, dict | Exception]: # NEW
+    try:
+        validations = fetch_validations(rack_name)
+        dashboard = process_node_validations(rack_name, validations)
+        entries = collect_pod_entries([rack_name])
+        return rack_name, {
+            "dashboard": dashboard,
+            "entries": entries,
+        }
+
+    except Exception as e:
+        return rack_name, e
+
+
+def _build_node_table(rack_name: str, node_data: dict, render: bool = True) -> Table | None: # NEW
+    console = Console()
+    required_pod_types = REQUIRED_POD_TYPES
+    entries = node_data["entries"]
+    dashboard = node_data["dashboard"]
+    pod_ready_map = {}
+    pod_status_map = {}
+    pod_issues_map = defaultdict(list)
+    pods_seen = defaultdict(set)
+    per_node_pod_status = defaultdict(dict)
+    for name, ready, status, node in entries:
+        pod_base = base_name(name)
+        pod_ready_map[node] = ready
+        pod_status_map[node] = status
+        if pod_base in required_pod_types:
+            pods_seen[node].add(pod_base)
+            per_node_pod_status[node][pod_base] = status
+            if status.lower() != "running":
+                pod_issues_map[node].append(f"[yellow]{pod_base} (not running)[/yellow]")
+
+    all_nodes = [f"{rack_name}-gn{i}" for i in range(1, 10)]
+    for node in all_nodes:
+        missing = required_pod_types - pods_seen[node]
+        for pod_base in missing:
+            pod_issues_map[node].append(f"[red]{pod_base} (missing)[/red]")
+
+    context = get_kubectl_context()
+    table = Table(title=f"{rack_name} - Node Dashboard - {context}", header_style="white")
+    table.add_column("Validator", style="cyan")
+    for i in range(1, 10):
+        table.add_column(f"gn{i}", justify="center")
+
+    for validator, nodes in dashboard.items():
+        row = [validator]
+        for i in range(1, 10):
+            node = f"{rack_name}-gn{i}"
+            status = nodes.get(f"gn{i}", {}).get("results_status", "N/A")
+            row.append(colorize(status))
+
+        table.add_row(*row)
+
+    table.add_section()
+    for pod_base in required_pod_types:
+        row = [pod_base]
+        for i in range(1, 10):
+            node = f"{rack_name}-gn{i}"
+            if pod_base in per_node_pod_status[node]:
+                status = per_node_pod_status[node][pod_base]
+
+            elif pod_issues_map[node]:
+                status = "[red]Missing[/red]"
+
+            else:
+                status = "-"
+
+            row.append(colorize(status))
+
+        table.add_row(*row)
+
+    if render:
+        console.print(table)
+        return None
+
+    else:
+        return table
+
+
+def _fetch_rack_crossrack_data(rack_name: str) -> tuple[str, dict | Exception]:
+    try:
+        data = kubectl_get_json_validation(rack_name)
+        return (rack_name, data)
+    except Exception as e:
+        return (rack_name, e)
+
+
+def _build_rack_crossrack_table(rack_name, validations, render=True):
+    console = Console()
+    context = get_kubectl_context()
+    table = Table(title=f"{rack_name} - Validation Status - {context}", header_style="white")
+    for col in ("Validator", "Phase", "Status", "Started At"):
+        table.add_column(col)
+
+    last_validator = None
+    for validator_name, node_groups in validations.items():
+        phases = determine_validation_phases(node_groups)
+        if last_validator:
+            table.add_section()
+        for phase in phases:
+            table.add_row(
+                f"[cyan]{validator_name}[/cyan]",
+                f"[white]{phase.get('phase', 'N/A')}[/white]",
+                colorize(phase.get('status', 'N/A')),
+                f"[white]{format_timestamp(phase.get('started_at', '-'))}[/white]"
+            )
+        last_validator = validator_name
+
+    if render:
+        console.print(table)
+        return None
+    else:
+        return table
 
 
 
@@ -496,16 +502,26 @@ def display_crossrack_table(rack_names: list[str], render: bool = True) -> list[
 # ===== PODS =========================================================================================
 # ====================================================================================================
 def collect_pod_entries(base_nodes):
+    """Collects pod entries for a list of base nodes"""
     entries = []
-    for base in base_nodes:
-        for node in [f"{base}-gn{i}" for i in range(1, 10)]:
-            pods = get_pods_json(field_selector=f"spec.nodeName={node}")
+    nodes = [f"{base}-gn{i}" for base in base_nodes for i in range(1, 10)]
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        futures = {executor.submit(get_pods_json, field_selector=f"spec.nodeName={node}"): node for node in nodes}
+        for future in as_completed(futures):
+            node = futures[future]
+            try:
+                pods = future.result()
+
+            except Exception as e:
+                Console().print(f"[red]Failed to fetch pods for node {node}: {e}[/red]")
+                continue
+
             for pod in pods:
                 if pod.get("status", {}).get("phase") == "Succeeded":
                     continue
 
                 name = pod["metadata"]["name"]
-                pod_base = base_name(name)  # consistent use here
+                pod_base = base_name(name)
                 status = pod["status"]["phase"]
                 node_name = pod["spec"]["nodeName"]
                 container_statuses = pod.get("status", {}).get("containerStatuses", [])
@@ -517,72 +533,8 @@ def collect_pod_entries(base_nodes):
     return sorted(entries, key=lambda x: (x[0], x[3]))
 
 
-def aggregate_pod_issues(entries):
-    node_issues = defaultdict(list)
-    pods_seen = defaultdict(set)
-    for name, _, status, node in entries:
-        if not is_node_name(node):
-            continue
-        
-        pod_base = base_name(name)
-        if pod_base in REQUIRED_POD_TYPES:
-            pods_seen[node].add(pod_base)
-            if status.lower() != "running":
-                node_issues[node].append(f"[yellow]{pod_base} (not running)[/yellow]")
-
-    all_nodes = set(pods_seen) | {e[3] for e in entries if is_node_name(e[3])}
-    for node in all_nodes:
-        missing = REQUIRED_POD_TYPES - pods_seen[node]
-        for pod_base in missing:
-            node_issues[node].append(f"[red]{pod_base} (missing)[/red]")
-
-    return node_issues
-
-
-def build_pod_status_ui(entries, base_nodes):
-    table = Table(title=f"Pod Statuses for: {', '.join(base_nodes)}", header_style="white", show_lines=False)
-    table.add_column("NAME", style="cyan", overflow="fold")
-    table.add_column("READY", justify="center")
-    table.add_column("STATUS", justify="center")
-    table.add_column("NODE", justify="center")
-    last_base = None
-    for name, ready, status, node in entries:
-        current_base = base_name(name)
-        if last_base and current_base != last_base:
-            table.add_section()
-
-        table.add_row(name, ready, colorize(status), node)
-        last_base = current_base
-
-    node_issues = aggregate_pod_issues(entries)
-    if node_issues:
-        lines = [f"{node}\n  " + "\n  ".join(issues) for node, issues in sorted(node_issues.items())]
-        summary_text = Text.from_markup("\n\n".join(lines))
-        max_width = max(
-            Measurement.get(Console(), Console().options, Text.from_markup(line)).maximum
-            for line in lines
-        )
-        summary_panel = Panel(
-            Align.right(summary_text),
-            title="Summary: Pod Issues by Node",
-            title_align="center",
-            border_style="magenta",
-            width=max_width + 4,
-        )
-    else:
-        message = "All expected pods are running on all nodes."
-        summary_panel = Panel(
-            Align(message, align="right"),
-            title="Summary",
-            title_align="center",
-            border_style="green",
-            width=len(message) + 4,
-        )
-
-    return table, summary_panel
-
-
 def parse_pods(filter_base_nodes=None):
+    """Parses pod statuses and returns a summary of pod states"""
     summary = defaultdict(lambda: defaultdict(dict))
     pod_prefixes = set()
     pods = get_pods_json()
@@ -615,7 +567,8 @@ def parse_pods(filter_base_nodes=None):
     return summary, sorted(pod_prefixes)
 
 
-def summarize_status(pod_states):
+def summarize_status_og(pod_states):
+    """Summarizes the status of pods in a rack"""
     expected_nodes = [f"gn{i}" for i in range(1, 10)]
     missing_nodes = [gn for gn in expected_nodes if gn not in pod_states]
     if missing_nodes:
@@ -628,11 +581,30 @@ def summarize_status(pod_states):
     return "Running"
 
 
+def summarize_status(pod_states):
+    """Summarizes the status of pods in a rack"""
+    expected_nodes = [f"gn{i}" for i in range(1, 10)]
+    missing_nodes = [gn for gn in expected_nodes if gn not in pod_states]
+    if missing_nodes:
+        return "Missing: " + ", ".join(sorted(missing_nodes))
+
+    not_running_nodes = defaultdict(list)
+    for gn, state in pod_states.items():
+        if state != "running":
+            not_running_nodes[state.capitalize()].append(gn.capitalize())
+
+    if not_running_nodes:
+        return ", ".join(f"{state}: {', '.join(sorted(nodes))}" for state, nodes in not_running_nodes.items())
+
+    return "Running"
+
+
 
 # ====================================================================================================
 # ===== CLUSTER ======================================================================================
 # ====================================================================================================
 def cluster_table_default_status(name):
+    """Returns a default status for a rack or cross-rack"""
     return {
         "rack": name,
         "nodes": {},
@@ -646,6 +618,7 @@ def cluster_table_default_status(name):
 
 
 def get_rack_health_info(nodes_json):
+    """Returns a dictionary of rack health information"""
     racks = defaultdict(lambda: cluster_table_default_status(""))
     for item in nodes_json.get("items", []):
         name = item["metadata"]["name"]
@@ -678,6 +651,11 @@ def get_rack_health_info(nodes_json):
 
 
 def update_rack_statuses(items, racks):
+    """Updates the rack statuses based on the node validation results"""
+    node_statuses = {}
+    total_success_nodes = 0
+    expected_nodes = [f"gn{i}" for i in range(1, 10)]
+
     for item in items:
         name = item.get("metadata", {}).get("name", "")
         status = item.get("status", {}).get("status", "Not Made")
@@ -687,21 +665,79 @@ def update_rack_statuses(items, racks):
 
         elif is_xrk_name(name):
             key = name.split("-", 1)[0]
+            racks.setdefault(key, cluster_table_default_status(key))
             racks[key]["xrk_name"] = name
             field = "xrk_status"
 
         else:
             key = extract_rack_prefix(name)
-            field = "node_status"
+            field = None  # node-level validator
 
         if key:
-            if key not in racks:
-                racks[key] = cluster_table_default_status(key)
+            racks.setdefault(key, cluster_table_default_status(key))
+            if field in {"rack_status", "xrk_status"}:
+                racks[key][field] = status
+            elif field is None:
+                node_statuses.setdefault(key, []).append((name, status))
 
-            racks[key][field] = status
+    # Summarize node statuses per rack and count successful nodes
+    for rack_name, name_statuses in node_statuses.items():
+        statuses_by_node = {}  # {gn1: [Success, Started], ...}
+        for name, status in name_statuses:
+            match = re.search(r"\b(gn[1-9])\b", name)
+            if match:
+                node = match.group(1)
+                statuses_by_node.setdefault(node, []).append(status)
+
+        missing_nodes = [n for n in expected_nodes if n not in statuses_by_node]
+
+        if missing_nodes:
+            # Are any of the existing nodes 'Success' or 'Partial'?
+            existing_statuses = [s for status_list in statuses_by_node.values() for s in status_list]
+            if any(s in {"Success", "Partial"} for s in existing_statuses):
+                summary = "Partial"
+            elif any(s in {"Started", "Running"} for s in existing_statuses):
+                summary = "Running"
+            else:
+                summary = "Not Made"
+
+        else:
+            all_statuses = [s for status_list in statuses_by_node.values() for s in status_list]
+            if any(s in {"Started", "Running"} for s in all_statuses):
+                summary = "Running"
+            else:
+                flat_node_summaries = []
+                for node in expected_nodes:
+                    node_status_list = statuses_by_node[node]
+                    if all(s == "Success" for s in node_status_list):
+                        flat_node_summaries.append("Success")
+                    elif any(s == "Success" for s in node_status_list):
+                        flat_node_summaries.append("Partial")
+                    else:
+                        flat_node_summaries.append("Failed")
+
+                success_count = sum(1 for s in flat_node_summaries if s == "Success")
+                total_success_nodes += success_count
+
+                if success_count == len(expected_nodes):
+                    summary = "Success"
+                elif success_count > 0:
+                    summary = "Partial"
+                else:
+                    summary = "Failed"
+
+        racks[rack_name]["node_status"] = summary
+
+    # Mark racks without any node entries as "Not Made"
+    for rack_name, rack in racks.items():
+        if "node_status" not in rack:
+            rack["node_status"] = "Not Made"
+
+    return total_success_nodes
 
 
 def get_data_cluster():
+    """Main function to get cluster data, node and pod health and summaries"""
     with ThreadPoolExecutor(max_workers=2) as executor:
         futures = {
             executor.submit(kubectl_get_json_resource, "nodes"): "nodes",
@@ -710,7 +746,6 @@ def get_data_cluster():
         results = {name: future.result() for future, name in ((f, futures[f]) for f in as_completed(futures))}
 
     racks = get_rack_health_info(results["nodes"])
-    update_rack_statuses(results["gv"].get("items", []), racks)
     rack_list = sorted(racks.values(), key=lambda r: natural_sort_key(r["rack"]))
     pod_summary, pod_prefixes = parse_pods()
     for rack in rack_list:
@@ -724,7 +759,7 @@ def get_data_cluster():
 
     total_nodes = len(rack_list) * 9
     ready_nodes = sum(1 for r in rack_list for ready in r["nodes"].values() if ready)
-    node_complete = sum(1 for r in rack_list if r["node_status"] == "Success") * 9
+    node_complete = update_rack_statuses(results["gv"].get("items", []), racks)
     rack_complete = sum(1 for r in rack_list if r["rack_status"] == "Success")
     xrk_complete = sum(1 for r in rack_list if r["xrk_status"] == "Success")
     return {
@@ -745,6 +780,7 @@ def get_data_cluster():
 
 
 def output_cluster_json(data, racks):
+    """Prints the cluster data in JSON format"""
     if racks:
         filtered_racks = {r["rack"]: r for r in data["racks"] if r["rack"] in racks}
         print(json.dumps(filtered_racks, indent=2))
@@ -753,11 +789,8 @@ def output_cluster_json(data, racks):
         print(json.dumps(data["racks"], indent=2))
 
 
-def output_cluster_table(data, rack_filter):
-    display_cluster_table(data, rack_filter=rack_filter)
-
-
 def print_cluster_summary(output=None, summary=None):
+    """Prints the cluster summary"""
     lines = [
         "Summary:",
         f"            Rack Total: {summary['total_racks']}",
@@ -775,6 +808,7 @@ def print_cluster_summary(output=None, summary=None):
 
 
 def print_failed_validations(output=None):
+    """Run and print 'kubectl validation status --only-failed' output"""
     try:
         result = subprocess.run(
             ["kubectl", "validation", "status", "--only-failed"],
@@ -790,7 +824,7 @@ def print_failed_validations(output=None):
         stdout = ""
 
     if stderr:
-        lines = ["\n[red]Error running validation command:[/red]", stderr]
+        lines = ["\n❌ Error running validation command:", stderr]
     else:
         lines = stdout.splitlines()
         start_index = next(
@@ -801,11 +835,10 @@ def print_failed_validations(output=None):
         if start_index is not None:
             lines = [""] + lines[start_index:]
         else:
-            lines = ["\n[green]🎉 No failed validations found! 🎉[/green]"]
+            lines = ["\n🎉 No failed validations found!"]
 
     for line in lines:
         if output:
             output.write(line)
         else:
             print(line)
-

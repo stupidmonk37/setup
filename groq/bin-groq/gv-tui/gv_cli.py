@@ -16,7 +16,7 @@ from utils import (
     display_node_table,
     get_data_cluster,
     output_cluster_json,
-    output_cluster_table,
+    display_cluster_table,
     print_cluster_summary,
     print_failed_validations,
     EXPECTED_NODES,
@@ -30,7 +30,7 @@ def handle_cluster(args):
     if args.format == "json":
         output_cluster_json(data, args.racks)
     else:
-        output_cluster_table(data, args.racks)
+        display_cluster_table(data, args.racks)
         print_cluster_summary(None, data["summary"])
         print_failed_validations()
 
