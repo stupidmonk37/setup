@@ -3,7 +3,7 @@
 set -e
 sudo -v
 
-source "$HOME/git/setup/dotfiles/.bin/home-functions.sh"
+source "$HOME/git/setup/dotfiles/.bin/functions-home.sh"
 
 work_env=false
 HOME_PACKAGES=(yq bash zsh tree watch tmux bat fzf powerlevel10k pipx parallelzsh-autosuggestions zsh-syntax-highlighting)

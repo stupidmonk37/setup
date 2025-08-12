@@ -3,7 +3,7 @@
 set -e
 sudo -v
 
-source "$HOME/git/setup/dotfiles/.bin/home-functions.sh"
+source "$HOME/git/setup/dotfiles/.bin/functions-home.sh"
 
 WORK_ENV=false
 JOB=groq
@@ -92,7 +92,7 @@ install_fzf_tab() {
 
 run_brew() {
     header "Running Homebrew setup..."
-    brew_script="${DOTFILE_DIR}/brew.sh"
+    brew_script="$HOME/git/setup/setup/brew.sh"
     if [[ -x "$brew_script" ]]; then
         "$brew_script"
     else
