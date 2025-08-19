@@ -1,0 +1,156 @@
+0r3-gn5.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [1]
+c0r5-gn5.yka1-prod1.groq.net	WARN
+c0r8-gn8.yka1-prod1.groq.net	EXCEPTION	Power Sources are not all on: [('c0r8-pdu2:7', False)]
+c0r23-gn5.yka1-prod1.groq.net	FAIL
+c0r23-gn6.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [3]
+c0r26-gn2.yka1-prod1.groq.net	WARN
+c0r27-gn1.yka1-prod1.groq.net	WARN
+c0r27-gn2.yka1-prod1.groq.net	WARN
+c0r27-gn3.yka1-prod1.groq.net	WARN
+c0r27-gn4.yka1-prod1.groq.net	WARN
+c0r27-gn5.yka1-prod1.groq.net	WARN
+c0r27-gn6.yka1-prod1.groq.net	WARN
+c0r27-gn7.yka1-prod1.groq.net	WARN
+c0r27-gn8.yka1-prod1.groq.net	WARN
+c0r27-gn9.yka1-prod1.groq.net	WARN
+c0r28-gn5.yka1-prod1.groq.net	WARN
+c0r28-gn7.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [0, 1]
+c0r37-gn5.yka1-prod1.groq.net	WARN
+c0r39-gn4.yka1-prod1.groq.net	WARN
+c0r40-gn5.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [2]
+c0r47-gn8.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [0, 1]
+c0r51-gn5.yka1-prod1.groq.net	FAIL
+c0r51-gn6.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [3]
+c0r58-gn4.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [3]
+c0r60-gn5.yka1-prod1.groq.net	EXCEPTION	BMC connection failure: HTTPSConnectionPool(host='c0r60-gn5-bmc.yka1-prod1.groq.net', port=443): Max retries exceeded with url: /redfish/v1 (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x10229dbe0>, 'Connection to c0r60-gn5-bmc.yka1-prod1.groq.net timed out. (connect timeout=None)'))
+c0r60-gn7.yka1-prod1.groq.net	WARN
+c0r65-gn5.yka1-prod1.groq.net	WARN
+c0r67-gn1.yka1-prod1.groq.net	WARN
+c0r67-gn2.yka1-prod1.groq.net	WARN
+c0r67-gn3.yka1-prod1.groq.net	WARN
+c0r67-gn4.yka1-prod1.groq.net	WARN
+c0r67-gn5.yka1-prod1.groq.net	WARN
+c0r67-gn6.yka1-prod1.groq.net	WARN
+c0r67-gn7.yka1-prod1.groq.net	WARN
+c0r67-gn8.yka1-prod1.groq.net	WARN
+c0r67-gn9.yka1-prod1.groq.net	WARN
+c0r71-gn4.yka1-prod1.groq.net	WARN
+c0r71-gn5.yka1-prod1.groq.net	WARN
+c0r74-gn9.yka1-prod1.groq.net	WARN
+c0r77-gn1.yka1-prod1.groq.net	WARN
+c0r77-gn2.yka1-prod1.groq.net	WARN
+c0r77-gn3.yka1-prod1.groq.net	WARN
+c0r77-gn4.yka1-prod1.groq.net	WARN
+c0r77-gn5.yka1-prod1.groq.net	WARN
+c0r77-gn6.yka1-prod1.groq.net	WARN
+c0r77-gn7.yka1-prod1.groq.net	WARN
+c0r77-gn8.yka1-prod1.groq.net	WARN
+c0r77-gn9.yka1-prod1.groq.net	WARN
+c0r81-gn4.yka1-prod1.groq.net	WARN
+c0r82-gn9.yka1-prod1.groq.net	FAIL
+c0r83-gn5.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [0]
+c0r86-gn3.yka1-prod1.groq.net	WARN
+c0r89-gn1.yka1-prod1.groq.net	EXCEPTION	pdu-manager connection failure: 502 Server Error: Bad Gateway for url: https://pdu-manager-yka1-prod1.tail15648.ts.net/api/v1/hosts/c0r89-gn1
+c0r89-gn2.yka1-prod1.groq.net	EXCEPTION	pdu-manager connection failure: 502 Server Error: Bad Gateway for url: https://pdu-manager-yka1-prod1.tail15648.ts.net/api/v1/hosts/c0r89-gn2
+c0r89-gn3.yka1-prod1.groq.net	EXCEPTION	pdu-manager connection failure: 502 Server Error: Bad Gateway for url: https://pdu-manager-yka1-prod1.tail15648.ts.net/api/v1/hosts/c0r89-gn3
+c0r89-gn4.yka1-prod1.groq.net	EXCEPTION	pdu-manager connection failure: 502 Server Error: Bad Gateway for url: https://pdu-manager-yka1-prod1.tail15648.ts.net/api/v1/hosts/c0r89-gn4
+c0r89-gn5.yka1-prod1.groq.net	EXCEPTION	pdu-manager connection failure: 502 Server Error: Bad Gateway for url: https://pdu-manager-yka1-prod1.tail15648.ts.net/api/v1/hosts/c0r89-gn5
+c0r89-gn6.yka1-prod1.groq.net	EXCEPTION	pdu-manager connection failure: 502 Server Error: Bad Gateway for url: https://pdu-manager-yka1-prod1.tail15648.ts.net/api/v1/hosts/c0r89-gn6
+c0r89-gn7.yka1-prod1.groq.net	EXCEPTION	pdu-manager connection failure: 502 Server Error: Bad Gateway for url: https://pdu-manager-yka1-prod1.tail15648.ts.net/api/v1/hosts/c0r89-gn7
+c0r89-gn8.yka1-prod1.groq.net	EXCEPTION	pdu-manager connection failure: 502 Server Error: Bad Gateway for url: https://pdu-manager-yka1-prod1.tail15648.ts.net/api/v1/hosts/c0r89-gn8
+c0r89-gn9.yka1-prod1.groq.net	EXCEPTION	pdu-manager connection failure: 502 Server Error: Bad Gateway for url: https://pdu-manager-yka1-prod1.tail15648.ts.net/api/v1/hosts/c0r89-gn9
+c0r98-gn1.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [0]
+c0r107-gn4.yka1-prod1.groq.net	WARN
+c0r110-gn1.yka1-prod1.groq.net	WARN
+c0r112-gn5.yka1-prod1.groq.net	WARN
+c0r112-gn6.yka1-prod1.groq.net	EXCEPTION	Power Sources are not all on: [('c0r112-pdu2:17', False)]
+c0r114-gn1.yka1-prod1.groq.net	WARN
+c0r114-gn3.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [0]
+c0r114-gn4.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [0]
+c0r114-gn7.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [2]
+c0r116-gn8.yka1-prod1.groq.net	WARN
+c0r117-gn7.yka1-prod1.groq.net	WARN
+c0r117-gn8.yka1-prod1.groq.net	WARN
+c0r118-gn5.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [0]
+c0r120-gn6.yka1-prod1.groq.net	WARN
+c0r120-gn7.yka1-prod1.groq.net	WARN
+c0r120-gn8.yka1-prod1.groq.net	WARN
+c0r123-gn1.yka1-prod1.groq.net	WARN
+c0r123-gn2.yka1-prod1.groq.net	WARN
+c0r123-gn3.yka1-prod1.groq.net	WARN
+c0r123-gn4.yka1-prod1.groq.net	WARN
+c0r124-gn8.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [0]
+c0r126-gn7.yka1-prod1.groq.net	FAIL
+c0r129-gn1.yka1-prod1.groq.net	WARN
+c0r131-gn7.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [2]
+c0r131-gn9.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [0, 3]
+c0r132-gn2.yka1-prod1.groq.net	WARN
+c0r133-gn7.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [0]
+c0r137-gn7.yka1-prod1.groq.net	WARN
+c0r143-gn2.yka1-prod1.groq.net	EXCEPTION	Power Sources are not all on: [('c0r143-pdu1:35', False)]
+c0r143-gn8.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [3]
+c0r143-gn9.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [2, 3]
+c0r144-gn6.yka1-prod1.groq.net	WARN
+c0r146-gn1.yka1-prod1.groq.net	WARN
+c0r146-gn2.yka1-prod1.groq.net	WARN
+c0r146-gn3.yka1-prod1.groq.net	WARN
+c0r146-gn4.yka1-prod1.groq.net	WARN
+c0r146-gn5.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [3]
+c0r146-gn6.yka1-prod1.groq.net	WARN
+c0r146-gn7.yka1-prod1.groq.net	WARN
+c0r146-gn8.yka1-prod1.groq.net	WARN
+c0r146-gn9.yka1-prod1.groq.net	WARN
+c0r149-gn1.yka1-prod1.groq.net	EXCEPTION	pdu-manager connection failure: 502 Server Error: Bad Gateway for url: https://pdu-manager-yka1-prod1.tail15648.ts.net/api/v1/hosts/c0r149-gn1
+c0r149-gn2.yka1-prod1.groq.net	EXCEPTION	pdu-manager connection failure: 502 Server Error: Bad Gateway for url: https://pdu-manager-yka1-prod1.tail15648.ts.net/api/v1/hosts/c0r149-gn2
+c0r149-gn3.yka1-prod1.groq.net	EXCEPTION	pdu-manager connection failure: 502 Server Error: Bad Gateway for url: https://pdu-manager-yka1-prod1.tail15648.ts.net/api/v1/hosts/c0r149-gn3
+c0r149-gn4.yka1-prod1.groq.net	EXCEPTION	pdu-manager connection failure: 502 Server Error: Bad Gateway for url: https://pdu-manager-yka1-prod1.tail15648.ts.net/api/v1/hosts/c0r149-gn4
+c0r149-gn5.yka1-prod1.groq.net	EXCEPTION	pdu-manager connection failure: 502 Server Error: Bad Gateway for url: https://pdu-manager-yka1-prod1.tail15648.ts.net/api/v1/hosts/c0r149-gn5
+c0r149-gn6.yka1-prod1.groq.net	EXCEPTION	pdu-manager connection failure: 502 Server Error: Bad Gateway for url: https://pdu-manager-yka1-prod1.tail15648.ts.net/api/v1/hosts/c0r149-gn6
+c0r149-gn7.yka1-prod1.groq.net	EXCEPTION	pdu-manager connection failure: 502 Server Error: Bad Gateway for url: https://pdu-manager-yka1-prod1.tail15648.ts.net/api/v1/hosts/c0r149-gn7
+c0r149-gn8.yka1-prod1.groq.net	EXCEPTION	pdu-manager connection failure: 502 Server Error: Bad Gateway for url: https://pdu-manager-yka1-prod1.tail15648.ts.net/api/v1/hosts/c0r149-gn8
+c0r149-gn9.yka1-prod1.groq.net	EXCEPTION	pdu-manager connection failure: 502 Server Error: Bad Gateway for url: https://pdu-manager-yka1-prod1.tail15648.ts.net/api/v1/hosts/c0r149-gn9
+c0r150-gn9.yka1-prod1.groq.net	WARN
+c0r151-gn1.yka1-prod1.groq.net	WARN
+c0r151-gn2.yka1-prod1.groq.net	WARN
+c0r151-gn3.yka1-prod1.groq.net	WARN
+c0r151-gn4.yka1-prod1.groq.net	WARN
+c0r151-gn5.yka1-prod1.groq.net	WARN
+c0r151-gn6.yka1-prod1.groq.net	WARN
+c0r151-gn7.yka1-prod1.groq.net	WARN
+c0r151-gn8.yka1-prod1.groq.net	WARN
+c0r151-gn9.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [2]
+c0r154-gn1.yka1-prod1.groq.net	WARN
+c0r154-gn2.yka1-prod1.groq.net	WARN
+c0r154-gn3.yka1-prod1.groq.net	WARN
+c0r154-gn4.yka1-prod1.groq.net	WARN
+c0r154-gn5.yka1-prod1.groq.net	WARN
+c0r154-gn6.yka1-prod1.groq.net	WARN
+c0r154-gn7.yka1-prod1.groq.net	WARN
+c0r154-gn8.yka1-prod1.groq.net	WARN
+c0r154-gn9.yka1-prod1.groq.net	WARN
+c0r155-gn5.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [1]
+c0r157-gn1.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [1]
+c0r157-gn2.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [3]
+c0r158-gn1.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [2]
+c0r158-gn2.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [1]
+c0r158-gn8.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [0]
+c0r159-gn6.yka1-prod1.groq.net	EXCEPTION	Power Sources are not all on: [('c0r159-pdu2:15', False)]
+c0r159-gn8.yka1-prod1.groq.net	EXCEPTION	Power Sources are not all on: [('c0r159-pdu2:7', False)]
+c0r160-gn1.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [0]
+c0r162-gn1.yka1-prod1.groq.net	WARN
+c0r162-gn2.yka1-prod1.groq.net	WARN
+c0r162-gn3.yka1-prod1.groq.net	WARN
+c0r162-gn4.yka1-prod1.groq.net	WARN
+c0r162-gn5.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [3]
+c0r162-gn6.yka1-prod1.groq.net	WARN
+c0r162-gn7.yka1-prod1.groq.net	WARN
+c0r162-gn8.yka1-prod1.groq.net	WARN
+c0r162-gn9.yka1-prod1.groq.net	WARN
+c0r163-gn3.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [2]
+c0r163-gn4.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [1, 2]
+c0r163-gn5.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [1, 3]
+c0r163-gn7.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [2, 3]
+c0r163-gn8.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [1, 3]
+c0r164-gn1.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [2]
+c0r166-gn2.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [2]
+c0r166-gn3.yka1-prod1.groq.net	EXCEPTION	PSUs are not all on: indices [2]

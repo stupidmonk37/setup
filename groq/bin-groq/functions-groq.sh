@@ -2,6 +2,124 @@
 
 #set +m  # Disable job control messages
 
+kval_stop() {
+  kubectl validation stop --validation $1
+}
+
+kval_requalify() {
+  kubectl validation requalify --rack $1
+}
+
+kval_retry() {
+  kubectl validation retry --validation $1
+}
+
+unresponsive_yka1_og() {
+    seq 1 10 \
+    | awk '{ for (i=1; i<=9; i++) printf "c0r%d-gn%d-bmc.yka1-prod1.groq.net\nc0r%d-gn%d.yka1-prod1.groq.net\n", $1, i, $1, i }' \
+    | parallel -j60 --halt soon,fail=1 'ping -c 2 -W 2 {} &>/dev/null || echo {}' \
+    | awk '{ print } END { print "---"; print "Total Unresponsive:", NR }'
+}
+
+unresponsive_yka1_meh() {
+    seq 1 10 \
+    | awk '{ for (i=1; i<=3; i++) printf "c0r%d-gn%d.yka1-prod1.groq.net\nc0r%d-gn%d-bmc.yka1-prod1.groq.net\n", $1, i }' \
+    | parallel -j10 'ping -c 1 -W 1 {} &>/dev/null || echo {}' \
+    | awk '{ print } END { print "---"; print "Total Unresponsive:", NR }'
+}
+
+unresponsive_yka1() {
+  tmpfile=$(mktemp)
+
+  # Generate all compute and BMC hostnames (166 racks × 9 nodes × 2 types = 2988)
+  seq 1 10 | awk '{ for (i=1; i<=9; i++) {
+    printf "c0r%d-gn%d.yka1-prod1.groq.net\n", $1, i
+    printf "c0r%d-gn%d-bmc.yka1-prod1.groq.net\n", $1, i
+  }}' > "$tmpfile"
+
+  echo "Pinging all nodes in yka1-prod1..."
+  echo ""
+
+  # fping all hosts, suppress pings that respond (-a for alive, -q for quiet output)
+  fping -f "$tmpfile" -q -a 2>/dev/null 1> /dev/null
+
+  # Run again to capture unresponsive hosts
+  echo "==== Unresponsive Hosts ===="
+  fping -f "$tmpfile" -q -u 2>/dev/null | sort -V
+
+  count=$(fping -f "$tmpfile" -q -u 2>/dev/null | wc -l)
+  echo "---"
+  echo "Total Unresponsive: $count"
+
+  rm -f "$tmpfile"
+}
+
+
+
+unresponsive_yyc1() {
+    seq 1 92 \
+    | awk '{ for (i=1; i<=9; i++) printf "c0r%d-gn%d-bmc.yyc1-prod1.groq.net\nc0r%d-gn%d.yyc1-prod1.groq.net\n", $1, i, $1, i }' \
+    | parallel -j60 --halt soon,fail=1 'ping -c 1 -W 2 {} &>/dev/null || echo {}' \
+    | awk '{ print } END { print "---"; print "Total Unresponsive:", NR }'
+}
+
+unresponsive_yul1() {
+    seq 1 76 \
+    | awk '{ for (i=1; i<=9; i++) printf "c0r%d-gn%d-bmc.yul1-prod1.groq.net\nc0r%d-gn%d.yul1-prod1.groq.net\n", $1, i, $1, i }' \
+    | parallel -j60 --halt soon,fail=1 'ping -c 1 -W 2 {} &>/dev/null || echo {}' \
+    | awk '{ print } END { print "---"; print "Total Unresponsive:", NR }'
+}
+
+ping_dal1() {
+  host="$1.dal1-prod1.groq.net"
+  ping "$host"
+}
+
+ping_dmm1() {
+  host="$1.dmm1-prod1.groq.net"
+  ping "$host"
+}
+
+ping_dmm1() {
+  host="$1.dmm1-prod2.groq.net"
+  ping "$host"
+}
+
+ping_geg3() {
+  host="$1.geg3-prod1.groq.net"
+  ping "$host"
+}
+
+ping_hel1() {
+  host="$1.hel1-prod1.groq.net"
+  ping "$host"
+}
+
+ping_hou1() {
+  host="$1.hou1-prod1.groq.net"
+  ping "$host"
+}
+
+ping_hou2() {
+  host="$1.hou2-prod1.groq.net"
+  ping "$host"
+}
+
+ping_msp1() {
+  host="$1.msp1-prod1.groq.net"
+  ping "$host"
+}
+
+ping_msp2() {
+  host="$1.msp2-prod1.groq.net"
+  ping "$host"
+}
+
+ping_yka1() {
+  host="$1.yka1-prod1.groq.net"
+  ping "$host"
+}
+
 k-pod-check() {
   local base_nodes=("$@")
 
