@@ -1,15 +1,47 @@
+
+# ======================================================
+# =====[ WORKFLOW ]=====================================
+# ======================================================
+# get to right context and namespace
+k8s-switch
+
+# see current state of the cluster
+~/git/dc-tools/tools/gv-dashboards.py -c
+
+##### fix the missing / unhealthy nodes #####
+
+# check validation status
+~/git/dc-tools/tools/gv-dashboards.py -c
+
+# find failed attempts only
+kval-status --only-failed
+
+# create ticket
+THIS NEEDS TO BE LOOKED INTO USING KUBECTL REPAIR
+
+# retry validation (TURN THIS INTO A FUNCTION)
+    # retry from point of failure
+    kubectl validation retry --node <rack-node>
+
+    # removes existing validation from node, rack and xrk - It's like starting validation over
+    kubectl validation requalify --node <rack-node>
+
+# check source of truth
+kracks <rack> [rack2] [...]
+
+# ======================================================
+# =====[ ADD NODE(S) TO CLUSTER ]==========================
+# ======================================================
+cd /Users/jjensen/git/infrastructure-platform-clusters/scripts
+NODES=$(echo c1r{9..20}-gn{1..9}) ./bios-config-yaml-gen.sh && kubectl apply -f bios-config-jobs && rm -rf bios-config-jobs
+
+# as nodes come up, run:
+kubectl label nodes -l 'groq.node=true,!topology.groq.io/wiring' topology.groq.io/family=xt topology.groq.io/wiring=xt4444 topology.groq.io/power-pod-id=1 --overwrite
+
+
 # =============================================
 # =====[ BMC ]=================================
 # =============================================
-# get bmc info dmm
-curl http://10.158.131.5/api/v1/dhcp/leases |   jq -r '.active[] | [.hostname, .ip, .mac, .created, .expires_at, .renewed, .status] | @tsv'| sort | grep $RACK
-
-# get bmc info msp2
-curl http://anodizer-api.msp2.groq.net/api/v1/dhcp/leases |   jq -r '.active[] | [.hostname, .ip, .mac, .created, .expires_at, .renewed, .status] | @tsv'| sort | grep $RACK
-
-# power cycle anything in DMM
-for i in `curl http://10.158.131.5/api/v1/dhcp/leases |   jq -r '.active[] | [.hostname, .ip, .mac, .created, .expires_at, .renewed, .status] | @tsv'| sort | grep $DEVICE | grep bmc | awk '{print$2}'`; do ipmitool -H $i -U root -P GroqRocks1 power cycle ; done
-
 # checck power status
 ipmitool -H <node> -U root -P GroqRocks1 power status
 
@@ -73,8 +105,6 @@ kubectl config rename-context dmm1-prod1.tail15648.ts.net dmm1-prod1
 
 # change context
 kubectl config use-context dmm1-prod1.tail15648.ts.net
-# or a custom function:
-k8s-switch
 
 # single rack metadata
 kubectl racks -o json | jq '.items[] | select(.metadata.name=="c1r25")'
@@ -83,33 +113,68 @@ kubectl racks -o json | jq '.items[] | select(.metadata.name=="c1r25")'
 # =============================================
 # =====[ NODE ADMIN ]==========================
 # =============================================
-infrastructure-platform-clusters/scripts/node-admin.sh $NODE $IMAGE
+# images
+fw updates - us-west1-docker.pkg.dev/prj-c-cloud-dcinfra-bc27/infrastructure-platform/tsp-ctl:55b7c210597
+single chip and general - us-west1-docker.pkg.dev/prj-c-cloud-dcinfra-bc27/infrastructure-platform/tsp-ctl
 
 # job templates
 /infrastructure-platform-clusters/scripts/hw_validation/templates
 
-# images
-IP_REPO="us-west1-docker.pkg.dev/prj-c-cloud-dcinfra-bc27/infrastructure-platform"
-tspCtlImage="us-west1-docker.pkg.dev/prj-c-cloud-dcinfra-bc27/infrastructure-platform/tsp-ctl:20250207191012.0.0-g13e712ed1fda-ciJob-6638359"
-runtimeTestsImage="us-west1-docker.pkg.dev/prj-c-cloud-dcinfra-bc27/infrastructure-platform/runtime-tests:20250207191037.0.0-g13e712ed1fda-ciJob-6638360"
-llamaEngineImage="us-west1-docker.pkg.dev/prj-c-cloud-dcinfra-bc27/infrastructure-platform/nova-engine:20250207191001.0.0-g13e712ed1fda-ciJob-6638357"
-neutrinoImage="us-docker.pkg.dev/prj-c-cloud-cicd-8fbb/neutrino/neutrino:v1.29.3"
-groqSweepImage="us-west1-docker.pkg.dev/prj-c-cloud-dcinfra-bc27/infrastructure-platform/groq-sweep:latest"
-netshootImage="nicolaka/netshoot:latest"
-
-
 # upgrade card fw
-run kc get node -l groq.fw-bundle-lowest=0.0.10
-run ~/git/infrastructure-platform-clusters/scripts/fw-update-yaml-gen.sh 0.0.10
-run kc apply -f fw-update/
+kubectl get node -l groq.fw-bundle-lowest=0.0.10
+$HOME/git/infrastructure-platform-clusters/scripts/node-admin.sh <rack>-<node> us-west1-docker.pkg.dev/prj-c-cloud-dcinfra-bc27/infrastructure-platform/tsp-ctl:55b7c210597
+kubectl taint node <node> firmware-update:NoExecute
+kubectl taint node <node> firmware-update:NoSchedule
+TSPCTL_NO_SYSTEMD=true tsp-ctl --device=/dev/<groq_card>.usb update-fw --bundle /firmware_bundle.bin *** OR *** TSPCTL_NO_SYSTEMD=true tsp-ctl update-fw --bundle /firmware_bundle.bin --all-devices
+kubectl taint node <node> firmware-update:NoExecute-
+kubectl taint node <node> firmware-update:NoSchedule-
+# reboot node
+# delete existing fw job
+
+~/git/infrastructure-platform-clusters/scripts/fw-update-yaml-gen.sh 0.0.10
+kubectl apply -f fw-update/<rack>
 
 
-use stern fw-update to follow the logs. or kc logs -f <pod> if you prefer
-don't forget to kc delete -f fw-update/ when you're done
-it will automatically reboot the node after the upgrade, but do follow the log so you see what is going on
+# find missing usb
+tsp-ctl k8s-init
 
 
-# =============================================
-# =====[ LABELS ONE-LINER ]====================
-# =============================================
-for i in {1..9}; do node="c1r65-gn$i"; echo -n "$node: "; kubectl get node "$node" -o json 2>/dev/null | jq -r '[["validation.groq.io/node-complete", .metadata.labels["validation.groq.io/node-complete"]], ["validation.groq.io/rack-complete", .metadata.labels["validation.groq.io/rack-complete"]], ["validation.groq.io/cross-rack-complete", .metadata.labels["validation.groq.io/cross-rack-complete"]]] | map(select(.[1] != null) | "\(.[0]): \(.[1])") | join(", ")'; done
+# misc fw update
+while read rack ; do echo $rack ; kubectl describe nodes $rack | grep -i firmware ; done < fw-updates.txt
+rm -rf $HOME/git/infrastructure-platform-clusters/scripts/fw-update-jobs/ ; while read rack ; do $HOME/git/infrastructure-platform-clusters/scripts/fw-update-yaml-gen.sh $rack 0.0.15 ; kubectl apply -f $HOME/git/infrastructure-platform-clusters/scripts/fw-update-jobs/firmware-update-$rack.yaml ; done < fw-updates.txt
+
+
+# run single chip manually
+$HOME/git/infrastructure-platform-clusters/scripts/node-admin.sh <rack>-<node> us-west1-docker.pkg.dev/prj-c-cloud-dcinfra-bc27/infrastructure-platform/tsp-ctl
+/bin/single-chip-determinism-exe --iterations 1000 --return-failed-devices --verbose
+
+# run single-node-link-test manually
+$HOME/git/infrastructure-platform-clusters/scripts/node-admin.sh <rack>-<node> us-west1-docker.pkg.dev/prj-c-cloud-dcinfra-bc27/infrastructure-platform/tsp-ctl
+single-node-link-test-exe --mode=All --return-failure --verbose
+
+# functions
+- label-check-rack
+- knodes
+- kracks
+- k-tspd
+- knodes-ipmi
+- kracks-ipmi
+- k-get-leases
+# scripts
+- clean_racks.sh
+- gv_tui.py
+- gv_cli.py
+- kval_status.sh
+- new_validation.sh
+- xt_find_c2c_connection.py
+- check_racks.sh
+- fixbmcpw.sh
+# aliases
+- kval-logs
+- kval-retry
+- bin-groq
+- tui
+- conman
+- kc
+- kpods
+- klist

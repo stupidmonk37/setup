@@ -2,6 +2,62 @@
 
 #set +m  # Disable job control messages
 
+tspd_logs() {
+    local node="$1"
+
+    if [[ -z "$node" ]]; then
+        echo "Usage: tspd_logs <node-name>"
+        return 1
+    fi
+
+    local pod
+    pod=$(kubectl get pods --field-selector spec.nodeName="$node" -o jsonpath='{.items[*].metadata.name}' | tr ' ' '\n' | grep '^tspd-')
+
+    if [[ -z "$pod" ]]; then
+        echo "No tspd pod found on node $node"
+        return 1
+    fi
+
+    kubectl logs -f "$pod" -c bring-up
+}
+
+kget_wrong_fw() {
+  kubectl get nodes -l groq.node=true -o json | jq -r '
+    .items[] |
+    select(
+      (.metadata.labels["validation.groq.io/firmware-bundle-groqA0"] // "MISSING") != "0.0.15" or
+      (.metadata.labels["validation.groq.io/firmware-bundle-groqA1"] // "MISSING") != "0.0.15" or
+      (.metadata.labels["validation.groq.io/firmware-bundle-groqA2"] // "MISSING") != "0.0.15" or
+      (.metadata.labels["validation.groq.io/firmware-bundle-groqA3"] // "MISSING") != "0.0.15" or
+      (.metadata.labels["validation.groq.io/firmware-bundle-groqA4"] // "MISSING") != "0.0.15" or
+      (.metadata.labels["validation.groq.io/firmware-bundle-groqA5"] // "MISSING") != "0.0.15" or
+      (.metadata.labels["validation.groq.io/firmware-bundle-groqA6"] // "MISSING") != "0.0.15" or
+      (.metadata.labels["validation.groq.io/firmware-bundle-groqA7"] // "MISSING") != "0.0.15"
+    ) |
+    .metadata.name' | sort -V
+}
+
+kget_wrong_fw_new() {
+  kubectl get nodes -l groq.node=true -o json \
+  | jq -r '
+      .items[]
+      | {name: .metadata.name, labels: .metadata.labels}
+      | select([range(0;8) as $i |
+            (.labels["validation.groq.io/firmware-bundle-groqA\($i)"] // "MISSING") != "0.0.15"
+          ] | any)
+      | .name
+    ' | sort -V
+}
+
+
+kpods() {
+  kubectl get pods --field-selector spec.nodeName="$1"
+}
+
+kval_logs() {
+  kubectl validation logs fetch --validation $1
+}
+
 kval_stop() {
   kubectl validation stop --validation $1
 }
@@ -14,167 +70,30 @@ kval_retry() {
   kubectl validation retry --validation $1
 }
 
-unresponsive_yka1_og() {
-    seq 1 10 \
-    | awk '{ for (i=1; i<=9; i++) printf "c0r%d-gn%d-bmc.yka1-prod1.groq.net\nc0r%d-gn%d.yka1-prod1.groq.net\n", $1, i, $1, i }' \
-    | parallel -j60 --halt soon,fail=1 'ping -c 2 -W 2 {} &>/dev/null || echo {}' \
-    | awk '{ print } END { print "---"; print "Total Unresponsive:", NR }'
+ping_unreachable() {
+  local racks=$1   # e.g., 83..84
+  local context
+  context=$(kubectl config current-context)
+  local domain="${context}.groq.net"
+  eval "fping -u c0r{$racks}-gn{1..9}{,-bmc}.$domain 2>/dev/null" | awk '{print $1}' | sort -V
 }
 
-unresponsive_yka1_meh() {
-    seq 1 10 \
-    | awk '{ for (i=1; i<=3; i++) printf "c0r%d-gn%d.yka1-prod1.groq.net\nc0r%d-gn%d-bmc.yka1-prod1.groq.net\n", $1, i }' \
-    | parallel -j10 'ping -c 1 -W 1 {} &>/dev/null || echo {}' \
-    | awk '{ print } END { print "---"; print "Total Unresponsive:", NR }'
-}
+ping_site() {
+  local node="$1"
+  local ctx="${2:-$(kubectl config current-context)}"
 
-unresponsive_yka1() {
-  tmpfile=$(mktemp)
+  # take just cluster/site name from context (strip user@, etc.)
+  local site=$(echo "$ctx" | awk -F'[@.]' '{print $1}')
 
-  # Generate all compute and BMC hostnames (166 racks × 9 nodes × 2 types = 2988)
-  seq 1 10 | awk '{ for (i=1; i<=9; i++) {
-    printf "c0r%d-gn%d.yka1-prod1.groq.net\n", $1, i
-    printf "c0r%d-gn%d-bmc.yka1-prod1.groq.net\n", $1, i
-  }}' > "$tmpfile"
-
-  echo "Pinging all nodes in yka1-prod1..."
-  echo ""
-
-  # fping all hosts, suppress pings that respond (-a for alive, -q for quiet output)
-  fping -f "$tmpfile" -q -a 2>/dev/null 1> /dev/null
-
-  # Run again to capture unresponsive hosts
-  echo "==== Unresponsive Hosts ===="
-  fping -f "$tmpfile" -q -u 2>/dev/null | sort -V
-
-  count=$(fping -f "$tmpfile" -q -u 2>/dev/null | wc -l)
-  echo "---"
-  echo "Total Unresponsive: $count"
-
-  rm -f "$tmpfile"
-}
-
-
-
-unresponsive_yyc1() {
-    seq 1 92 \
-    | awk '{ for (i=1; i<=9; i++) printf "c0r%d-gn%d-bmc.yyc1-prod1.groq.net\nc0r%d-gn%d.yyc1-prod1.groq.net\n", $1, i, $1, i }' \
-    | parallel -j60 --halt soon,fail=1 'ping -c 1 -W 2 {} &>/dev/null || echo {}' \
-    | awk '{ print } END { print "---"; print "Total Unresponsive:", NR }'
-}
-
-unresponsive_yul1() {
-    seq 1 76 \
-    | awk '{ for (i=1; i<=9; i++) printf "c0r%d-gn%d-bmc.yul1-prod1.groq.net\nc0r%d-gn%d.yul1-prod1.groq.net\n", $1, i, $1, i }' \
-    | parallel -j60 --halt soon,fail=1 'ping -c 1 -W 2 {} &>/dev/null || echo {}' \
-    | awk '{ print } END { print "---"; print "Total Unresponsive:", NR }'
-}
-
-ping_dal1() {
-  host="$1.dal1-prod1.groq.net"
+  local host="${node}.${site}.groq.net"
+  echo "Pinging $host ..."
   ping "$host"
-}
-
-ping_dmm1() {
-  host="$1.dmm1-prod1.groq.net"
-  ping "$host"
-}
-
-ping_dmm1() {
-  host="$1.dmm1-prod2.groq.net"
-  ping "$host"
-}
-
-ping_geg3() {
-  host="$1.geg3-prod1.groq.net"
-  ping "$host"
-}
-
-ping_hel1() {
-  host="$1.hel1-prod1.groq.net"
-  ping "$host"
-}
-
-ping_hou1() {
-  host="$1.hou1-prod1.groq.net"
-  ping "$host"
-}
-
-ping_hou2() {
-  host="$1.hou2-prod1.groq.net"
-  ping "$host"
-}
-
-ping_msp1() {
-  host="$1.msp1-prod1.groq.net"
-  ping "$host"
-}
-
-ping_msp2() {
-  host="$1.msp2-prod1.groq.net"
-  ping "$host"
-}
-
-ping_yka1() {
-  host="$1.yka1-prod1.groq.net"
-  ping "$host"
-}
-
-k-pod-check() {
-  local base_nodes=("$@")
-
-  local data
-  data=$( (
-    for base in "${base_nodes[@]}"; do
-      for i in $(seq 1 9); do
-        node="${base}-gn${i}"
-        kubectl get pods --field-selector spec.nodeName="$node" -o json 2>/dev/null || true
-      done
-    done
-  ) | jq -r '
-    .items[]? |
-    select(.status.phase != "Succeeded") |
-    (.status.phase) as $status |
-    (.metadata.name) as $name |
-    (.spec.nodeName) as $node |
-    ([.status.containerStatuses[]?.ready] | map(if . then 1 else 0 end) | add) as $ready_count |
-    ([.status.containerStatuses[]?] | length) as $total_count |
-    ($node | capture("c(?<cluster>\\d+)r(?<rack>\\d+)-gn(?<gn>\\d+)")) as $node_match |
-    [
-      $name,
-      ($node_match.gn | tonumber),
-      "\($ready_count)/\($total_count)",
-      $status,
-      $node
-    ] | @tsv
-  ')
-
-  {
-    echo -e "NAME\tREADY\tSTATUS\tNODE"
-    echo -e "$data" | sort -t $'\t' -k1,1 -k2,2n | cut -f1,3-5
-  } | column -t -s $'\t'
-
-  echo
-  echo "Summary:"
-
-  echo "$data" | cut -f1 \
-    | sed -E 's/-[a-z0-9]{5}$//' \
-    | sort | uniq -c | awk '
-      {
-        names[$2] = $1
-        if (length($2) > max_len) max_len = length($2)
-      }
-      END {
-        for (name in names) {
-          printf "%" max_len "s: %s pods\n", name, names[name]
-        }
-      }' | sort
 }
 
 
 # Check the label of a rack's nodes
 # (ie label-check-rack c1r1)
-label-check-rack() {
+label_check_rack() {
   for RACK in "$@" ; do
     for i in gn{1..9} ; do
       NODE="${RACK}-${i}"
@@ -245,79 +164,25 @@ kracks() {
 }
 
 
-# Get logs from failed pods
-# Append strings to filter the output
-# (ie stern-failed missing-optics-c1r1)
-# You can also append '-o raw' to get a pure json output
-#alias stern-failed="stern --no-follow --only-log-lines --field-selector status.phase=Failed"
-
-# Append strings to filter the output
-# Never follow the logs, and only show the log lines
-#alias stern-no="stern --no-follow --only-log-lines"
-
-# Execute a command on a node's tspd pod and tspd container
-# (ie kc_tspd_exec c1r1-gn1 "tspctl status")
-#kc_tspd_exec() {
-#    local node="$1"
-#    [ -z "$node" ] && { echo "Please provide a node."; return 1; }
-#    shift
-#    local action="$*"
-#    [ -z "$action" ] && { echo "Please provide an action to perform."; return 1; }
-#    kubectl exec -it -c tspd \
-#        "$(kubectl get pod -l app=tspd --field-selector spec.nodeName="$node" -o name)" -- "$action"
-#}
-
-# Get or delete tspd pods from specified racks
-# (ie kc_tspd c1r1 c1r2)
-# (ie kc_tspd delete c1r1 c1r2)
-k-tspd() {
-    local action="get"
-    local headers="--no-headers"
-    if [ "$1" = "delete" ]; then
-        action="delete"
-        headers=""
-        shift
-    fi
-    local racks=("$@")
-    [ ${#racks[@]} -eq 0 ] && { echo "Please provide rack names."; return 1; }
-    
-    for rack in "${racks[@]}"; do
-        echo "$rack $action tspd pod"
-        kubectl "$action" $headers \
-            $(
-                echo {1..9} | \
-                    xargs -n 1 | \
-                    parallel -j 9 kubectl get pod \
-                        -n groq-system \
-                        -l app=tspd \
-                        --field-selector spec.nodeName="${rack}-gn{}" \
-                        --no-headers \
-                        -o name
-            )
-    done
-}
-
-
 # Execute IPMI power commands on a node
-# (ie node_ipmi c1r1)
-# (ie node_ipmi c1r1 cycle)
-knodes-ipmi() {
+# (ie knodes-ipmi c1r1)
+# (ie knodes-ipmi c1r1 cycle)
+knodes_ipmi() {
     local node="$1"
     local ipmi_cmd="${2:-"status"}"
     [ -z "$node" ] && { echo "Please provide node name (short name)."; return 1; }
     kc_context="$(kubectl config current-context)"
     #dc="${dc:-${kc_context%-*}}"
     fqdn="${node}-bmc.${kc_context}.groq.net"
-
     ipmitool -H "$fqdn" -U root -P GroqRocks1 power "$ipmi_cmd"
 }
 
 
 # Function to execute IPMI commands on all nodes in specified racks
 # The default action is 'status'
-# (ie rack_ipmi c1r1 c1r2)
-# (ie rack_ipmi cycle c1r1 c1r2)
-kracks-ipmi() {
+# (ie kracks-ipmi c1r1 c1r2)
+# (ie kracks-ipmi cycle c1r1 c1r2)
+kracks_ipmi() {
     local ipmi_action="status"
     local found_action="false"
     local ipmi_actions=(
@@ -382,20 +247,24 @@ kracks-ipmi() {
 
 # Open a BMC console for a single node
 # (ie node_console c1r1)
+# DOESN'T WORK...
 #node_console() {
 #    local node="$1"
-#    [ -z "$node" ] && { echo "Please provide node name (short name)."; return 1; }
+#    [ -z "$node" ] && { echo "Please provide node name."; return 1; }
+
+#    local kc_context fqdn
 #    kc_context="$(kubectl config current-context)"
-#    dc="${dc:-${kc_context%-*}}"
-#    fqdn="${node}-bmc.${dc}.groq.net"
-#
-#    ipmiconsole -h "$fqdn" -u root -p GroqRocks1
+#    fqdn="${node}-bmc.${kc_context}.groq.net"
+
+#    echo "Connecting to $fqdn (press ~ to exit)..."
+#    ipmiconsole -h "$fqdn" -u root -p GroqRocks1 --escape-char="^\\"
 #}
+
 
 
 # Get Anodizer leases based on the current context
 # (ie get_leases | jq -r 'select(.hostname|test("c1r1")) | [.hostname, .ip] | @tsv'
-k-get-leases() {
+kget_leases() {
     local filter="$1"
     kc_context="$(kubectl config current-context)"
 
