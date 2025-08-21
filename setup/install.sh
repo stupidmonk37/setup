@@ -13,8 +13,8 @@ DOTFILE_FILE=(.vim .vimrc .zshrc .zprofile .aliases .bin .tmux.conf .p10k.zsh)
 DOTFILE_DIR="$SETUP_DIR/dotfiles"
 WORK_FILE=(.aliases-$JOB .zshrc-$JOB)
 WORK_DIR="$SETUP_DIR/$JOB"
-HOME_PACKAGES=(yq bash zsh tree watch tmux bat fzf powerlevel10k pipx parallel zsh-autosuggestions zsh-syntax-highlighting)
-WORK_PACKAGES=(k9s ipmitool pdsh)
+HOME_PACKAGES=(bash bat btop fzf neovim pipx parallel powerlevel10k tmux tree watch yq zsh zsh-autosuggestions zsh-syntax-highlighting)
+WORK_PACKAGES=(fping freeipmi ipmitool k9s pdsh)
 HOME_APPS=(visual-studio-code rectangle chatgpt iterm2 font-meslo-for-powerlevel10k font-symbols-only-nerd-font)
 WORK_APPS=()
 
