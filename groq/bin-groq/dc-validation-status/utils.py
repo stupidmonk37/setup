@@ -1,15 +1,14 @@
 import json
 import re
 import subprocess
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from rich.console import Console
 from rich.table import Table
 from datetime import datetime
-from collections import defaultdict, OrderedDict
+from collections import defaultdict
 from textual.widgets import RichLog
-from typing import List, Dict, Any, Optional, Iterable, Tuple, Set
-
-
+from typing import Optional, List, Dict, Any
 
 # ====================================================================================================
 # ===== CONSTANTS ====================================================================================
@@ -18,8 +17,7 @@ ALLOWED_POD_PREFIXES = ["bios-conformance", "mcu-comm-server", "tspd"]
 EXPECTED_POD_COUNTS = {"bios-conformance": 9, "mcu-comm-server": 9, "tspd": 9}
 REQUIRED_POD_TYPES = set(EXPECTED_POD_COUNTS)
 EXPECTED_NODES = {f"gn{i}" for i in range(1, 10)}
-EXPECTED_FW_VERSION = "0.0.15"
-FW_LABEL_KEYS: List[str] = [f"validation.groq.io/firmware-bundle-groqA{i}" for i in range(8)]
+
 
 
 # ====================================================================================================
@@ -35,7 +33,7 @@ def format_timestamp(ts: str) -> str:
 
 
 COLOR_MAP = {
-    "green": {"success", "healthy", "ready"},
+    "green": {"success", "healthy"},
     "blue": {"in progress", "running"},
     "cyan": {"pending", "started"},
     "bright white": {"not made"},
@@ -57,74 +55,133 @@ def colorize(text: str) -> str:
 # ====================================================================================================
 # ===== KUBECTL JSON HELPERS =========================================================================
 # ====================================================================================================
-def kubectl_get_json_resource(resource: str) -> dict:
-    cmd = ["kubectl", "get", resource, "-o", "json", "-n", "groq-system", "--chunk-size=0"]
-    return json.loads(subprocess.check_output(cmd, text=True))
+def kubectl_get_json_resource(resource: str, *, namespace: Optional[str] = None, context: Optional[str] = None) -> dict:
+    """Generic getter for cluster or namespaced resources."""
+    args: List[str] = ["get", resource]
+    if namespace:
+        args += ["-n", namespace]
+    return _kubectl_json(args, context)
 
 
-def kubectl_get_json_validation(name: str = None) -> dict:
-    cmd = ["kubectl", "get", "groqvalidations.validation.groq.io"]
+def kubectl_get_json_validation(name: Optional[str] = None, context: Optional[str] = None) -> dict:
+    """
+    Get a Validation CR:
+      • name=None  -> ALL groqvalidations in groq-system
+      • name=...   -> that specific groqvalidation (rack or node)
+    """
+    # NOTE: the plural/group is important here
+    args: List[str] = ["get", "groqvalidations.validation.groq.io"]
     if name:
-        cmd.append(name)
-
-    cmd.extend(["-n", "groq-system", "-o", "json", "--chunk-size=0"])
+        args.append(name)
+    args += ["-n", "groq-system"]
     try:
-        output = subprocess.check_output(cmd, text=True, stderr=subprocess.DEVNULL)
-        return json.loads(output)
-
+        return _kubectl_json(args, context)
     except subprocess.CalledProcessError:
         return {}
 
 
-def kubectl_get_json_nodes_by_rack(rack_name: str) -> dict: # NEW
-    cmd = ["kubectl", "get", "nodes", "-l", f"topology.groq.io/rack={rack_name}", "-o", "json", "--chunk-size=0"]
+def kubectl_get_json_nodes_by_rack(rack: str, context: Optional[str] = None) -> dict:
     try:
-        output = subprocess.check_output(cmd, stderr=subprocess.DEVNULL, text=True)
-        return json.loads(output)
+        return _kubectl_json(["get", "nodes", "--selector", f"topology.groq.io/rack={rack}"], context)
     except (subprocess.CalledProcessError, json.JSONDecodeError):
         return {"items": []}
 
 
-# Cache for kubectl context to avoid repeated subprocess calls
-_kubectl_context_cache = None
-
 def get_kubectl_context() -> str:
-    global _kubectl_context_cache
-    if _kubectl_context_cache is not None:
-        return _kubectl_context_cache
-
     try:
-        # Use check_output for slightly better performance
-        result = subprocess.check_output(
+        result = subprocess.run(
             ["kubectl", "config", "current-context"],
-            stderr=subprocess.DEVNULL,
-            text=True
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True
         )
-        _kubectl_context_cache = result.strip()
-        return _kubectl_context_cache
+        return result.stdout.strip()
 
     except subprocess.CalledProcessError:
-        _kubectl_context_cache = "Unknown Context"
-        return _kubectl_context_cache
+        return "Unknown Context"
 
 
-def get_pods_json(field_selector=None, label_selector=None, namespace="groq-system"):
-    cmd = ["kubectl", "get", "pods", "-n", namespace, "-o", "json", "--chunk-size=0"]
+def get_pods_json(field_selector: Optional[str] = None, namespace: str = "groq-system", *, context: Optional[str] = None):
+    args: List[str] = ["get", "pods", "-n", namespace]
     if field_selector:
-        cmd.insert(3, "--field-selector")
-        cmd.insert(4, field_selector)
-    if label_selector:
-        cmd.extend(["-l", label_selector])
-
+        args += ["--field-selector", field_selector]
     try:
-        output = subprocess.check_output(cmd, stderr=subprocess.DEVNULL, text=True)
-        return json.loads(output).get("items", [])
-
-    except subprocess.CalledProcessError:
+        return _kubectl_json(args, context).get("items", [])
+    except (subprocess.CalledProcessError, json.JSONDecodeError):
         return []
 
-    except json.JSONDecodeError:
+
+def get_inference_engine_pods(context: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Get pods from inference-engine namespace with kubectl-like information."""
+    try:
+        pods = get_pods_json(namespace="inference-engine", context=context)
+        result = []
+        
+        for pod in pods:
+            metadata = pod.get("metadata", {})
+            status = pod.get("status", {})
+            spec = pod.get("spec", {})
+            
+            # Calculate READY status like kubectl
+            ready = "0/0"
+            if "containerStatuses" in status:
+                total_containers = len(status["containerStatuses"])
+                ready_containers = sum(1 for c in status["containerStatuses"] if c.get("ready", False))
+                ready = f"{ready_containers}/{total_containers}"
+            
+            # Get restart count
+            restarts = 0
+            if "containerStatuses" in status:
+                restarts = sum(c.get("restartCount", 0) for c in status["containerStatuses"])
+            
+            # Calculate age
+            creation_time = metadata.get("creationTimestamp", "")
+            age = ""
+            if creation_time:
+                try:
+                    from datetime import datetime, timezone
+                    created = datetime.fromisoformat(creation_time.replace("Z", "+00:00"))
+                    now = datetime.now(timezone.utc)
+                    delta = now - created
+                    
+                    if delta.days > 0:
+                        age = f"{delta.days}d"
+                    elif delta.seconds > 3600:
+                        age = f"{delta.seconds // 3600}h"
+                    elif delta.seconds > 60:
+                        age = f"{delta.seconds // 60}m"
+                    else:
+                        age = f"{delta.seconds}s"
+                except:
+                    age = "unknown"
+            
+            result.append({
+                "name": metadata.get("name", ""),
+                "ready": ready,
+                "status": status.get("phase", "Unknown"),
+                "restarts": restarts,
+                "age": age,
+                "node": spec.get("nodeName", ""),
+            })
+        
+        return result
+    except Exception as e:
+        print(f"Error getting inference-engine pods: {e}")
         return []
+
+
+def _run(cmd: List[str]) -> str:
+    out = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    return out.stdout
+
+
+def _kubectl_json(args: List[str], context: Optional[str] = None) -> Dict[str, Any]:
+    base = ["kubectl"]
+    if context:
+        base += ["--context", context]
+    out = _run(base + args + ["-o", "json"])
+    return json.loads(out or "{}")
 
 
 
@@ -253,13 +310,13 @@ def process_node_validations(rack_name: str, validations: dict) -> dict:
     return summary
 
 
-def fetch_validations(rack_name: str) -> dict:
+def fetch_validations(rack_name: str, context: Optional[str] = None) -> dict:
     node_names = [f"{rack_name}-gn{i}" for i in range(1, 10)]
     validations = {}
     def fetch_node_validation(node):
-        return node, kubectl_get_json_validation(node).get("status", {}).get("validations", {})
+        return node, kubectl_get_json_validation(node, context=context).get("status", {}).get("validations", {})
 
-    with ThreadPoolExecutor(max_workers=20) as executor:
+    with ThreadPoolExecutor(max_workers=9) as executor:
         results = executor.map(fetch_node_validation, node_names)
 
     for node_name, node_validations in results:
@@ -273,217 +330,39 @@ def fetch_validations(rack_name: str) -> dict:
 # ====================================================================================================
 # ===== DISPLAY TABLES ===============================================================================
 # ====================================================================================================
-def _normalize_rows(rows: Any) -> List[Dict[str, Any]]:
-    """Accept list[dict], dict[str, dict], or full cluster payload {'summary':..., 'racks':[...]}."""
-    if rows is None:
-        return []
-    if isinstance(rows, dict) and isinstance(rows.get("racks"), list):
-        return [r for r in rows["racks"] if isinstance(r, dict)]
-    if isinstance(rows, list):
-        return [r for r in rows if isinstance(r, dict)]
-    if isinstance(rows, dict):
-        out = []
-        for _, v in rows.items():
-            if isinstance(v, dict):
-                rec = dict(v)
-                if "node" not in rec and ("Node" in rec or "name" in rec):
-                    rec.setdefault("node", rec.get("Node", rec.get("name")))
-                out.append(rec)
-        return out
-    return []
+def display_cluster_table(data, rack_filter=None, render=True) -> Table | None:
+    """Renders a table of the cluster status"""
+    context = get_kubectl_context()
+    table = Table(title=f"Groq Validation Status - {context}", header_style="white")
+    racks = data.get("racks", [])
+    pod_prefixes = sorted({prefix for rack in racks for prefix in rack.get("pod_health", {}).keys()})
+    columns = ["Rack", "Health"] + pod_prefixes + ["Node GV", "Rack GV", "XRK Name", "XRK GV"]
+    for col in columns:
+        table.add_column(col)
 
+    rack_filter_set = set(rack_filter) if rack_filter else None
+    for rack in racks:
+        rack_name = rack.get("rack", "")
+        if rack_filter_set and rack_name not in rack_filter_set:
+            continue
 
-def _filter_by_racks(rows: List[Dict[str, Any]], racks: Optional[Iterable[str]]) -> List[Dict[str, Any]]:
-    if not racks:
-        return rows
-    rs = set(racks)
-    if any("rack" in r for r in rows):
-        return [r for r in rows if r.get("rack") in rs]
-    return rows
-
-
-def display_cluster_table(
-    rows: Any,
-    racks: Optional[Iterable[str]] = None,
-    *,
-    title: Optional[str] = None,
-    expected_fw_version: str = EXPECTED_FW_VERSION,
-    selector: str = "groq.node=true",
-    context: Optional[str] = None,
-    render: bool = True,
-    firmware_data: Optional[Tuple[Set[str], Dict[str, Dict[str, str]]]] = None,
-) -> Table:
-    """
-    Cluster overview with a single 'FW Version' column placed right after 'tspd'.
-
-    Rack view:
-      - If all nodes OK: shows expected version (green), e.g., "0.0.15"
-      - Else: shows offending value groups, e.g., "0.0.12: gn2 | Missing: gn3 | Invalid: gn4,gn7"
-
-    Node view:
-      - If OK: expected version (green)
-      - If bad: offending node's value label ("0.0.12", "Missing", or "Invalid") in red
-    """
-    console = Console()
-    ctx = context or get_kubectl_context()
-
-    norm_rows = _normalize_rows(rows)
-    norm_rows = _filter_by_racks(norm_rows, racks)
-
-    is_rack_view = any("rack" in r for r in norm_rows) and not any("node" in r for r in norm_rows)
-
-    # ----- Choose base columns (insert "FW Version" right after 'tspd') -----
-    if is_rack_view:
-        pod_prefixes: List[str] = []
-        seen = set()
-        for r in norm_rows:
-            for p in (r.get("pod_health") or {}):
-                if p not in seen:
-                    seen.add(p)
-                    pod_prefixes.append(p)
-
-        base_cols = ["Rack", "Health"]
-        inserted_fw = False
-        for p in pod_prefixes:
-            base_cols.append(p)
-            if p == "tspd":
-                base_cols.append("FW Version")
-                inserted_fw = True
-        if not inserted_fw:
-            base_cols.append("FW Version")  # if tspd not present, put FW after pods
-
-        base_cols += ["Node GV", "Rack GV", "XRK Name", "XRK GV"]
-
-    else:
-        seen_keys: List[str] = []
-        for r in norm_rows:
-            for k in r.keys():
-                if k not in seen_keys:
-                    seen_keys.append(k)
-        base_cols = (["node"] + [k for k in seen_keys if k != "node"]) if "node" in seen_keys else seen_keys
-        base_cols.append("FW Version")
-
-    table_title = title or f"Cluster Overview - {ctx or 'unknown context'}"
-    table = Table(title=table_title, header_style="white")
-
-    for col in base_cols:
-        label = col if isinstance(col, str) else str(col)
-        if label.lower() in ("node", "rack"):
-            table.add_column(label.title(), justify="left", no_wrap=True)
-        else:
-            table.add_column(label, justify="center")
-
-    # ----- Firmware mismatches -----
-    if firmware_data is not None:
-        mismatched_nodes, mismatch_details = firmware_data
-    else:
-        mismatched_nodes, mismatch_details = fetch_firmware_mismatch_nodes(
-            expected_version=expected_fw_version,
-            selector=selector,
-            context=ctx,
-        )
-
-    def _node_offending_value(node: str) -> str:
-        """
-        Summarize a node's offending value from its mismatch details:
-          - single non-MISSING value -> that value (e.g., '0.0.12')
-          - only MISSING -> 'Missing'
-          - multiple differing values / mix -> 'Invalid'
-        """
-        details = mismatch_details.get(node, {})
-        if not details:
-            return expected_fw_version  # shouldn't be called for OK nodes, but safe
-        uniq = set(details.values())
-        non_missing = {v for v in uniq if v != "MISSING"}
-        if len(uniq) == 1 and "MISSING" in uniq:
-            return "Missing"
-        if len(non_missing) == 1 and "MISSING" not in uniq:
-            return next(iter(non_missing))
-        return "Invalid"
-
-    def rack_fw_value(rack: str) -> str:
-        offenders = [f"gn{i}" for i in range(1, 10) if f"{rack}-gn{i}" in mismatched_nodes]
-        for i in range(1, 10):
-            node = f"{rack}-gn{i}"
-            if node in mismatched_nodes:
-                label = _node_offending_value(node)
-                offenders.append((label, f"gn{i}"))
-        if not offenders:
-            return f"[green]{expected_fw_version}[/green]"
-
-        # group by offending value for clarity (existing logic)
-        grouped = {}
-        for i in range(1, 10):
-            node = f"{rack}-gn{i}"
-            if node in mismatched_nodes:
-                details = mismatch_details.get(node, {})
-                uniq = set(details.values())
-                non_missing = {v for v in uniq if v != "MISSING"}
-                if len(uniq) == 1 and "MISSING" in uniq:
-                    label = "Missing"
-                elif len(non_missing) == 1 and "MISSING" not in uniq:
-                    label = next(iter(non_missing))
-                else:
-                    label = "Invalid"
-                grouped.setdefault(label, []).append(f"gn{i}")
-        parts = [f"{label}: {','.join(sfx)}" for label, sfx in grouped.items()]
-        return f"[red]{' | '.join(parts)}[/red]"
-
-    def node_fw_value(node: str) -> str:
-        if node in mismatched_nodes:
-            details = mismatch_details.get(node, {})
-            uniq = set(details.values())
-            non_missing = {v for v in uniq if v != "MISSING"}
-            if len(uniq) == 1 and "MISSING" in uniq:
-                label = "Missing"
-            elif len(non_missing) == 1 and "MISSING" not in uniq:
-                label = next(iter(non_missing))
-            else:
-                label = "Invalid"
-            return f"[red]{label}[/red]"
-        return f"[green]{expected_fw_version}[/green]"
-
-    # ----- Rows -----
-    for r in norm_rows:
-        cells: List[str] = []
-        if is_rack_view:
-            rack = r.get("rack", "")
-            health = colorize(r.get("health", "-"))
-            pod_health = r.get("pod_health", {}) or {}
-
-            for col in base_cols:
-                if col == "Rack":
-                    cells.append(rack)
-                elif col == "Health":
-                    cells.append(health)
-                elif col in ("Node GV", "Rack GV", "XRK Name", "XRK GV"):
-                    if col == "Node GV":
-                        cells.append(colorize(r.get("node_status", "-")))
-                    elif col == "Rack GV":
-                        cells.append(colorize(r.get("rack_status", "-")))
-                    elif col == "XRK Name":
-                        cells.append(r.get("xrk_name") or "")
-                    elif col == "XRK GV":
-                        cells.append(colorize(r.get("xrk_status", "-")))
-                elif col == "FW Version":
-                    cells.append(rack_fw_value(rack))
-                else:  # pod columns
-                    cells.append(colorize(pod_health.get(col, "-")))
-        else:
-            for col in base_cols:
-                if col == "FW Version":
-                    node_name = r.get("node") or r.get("Node") or r.get("name") or ""
-                    cells.append(node_fw_value(node_name))
-                else:
-                    v = r.get(col, "")
-                    cells.append("" if v is None else str(v))
-
-        table.add_row(*cells)
+        pod_health = rack.get("pod_health", {})
+        row = [rack_name, colorize(rack.get("health", "-"))]
+        row.extend(colorize(pod_health.get(prefix, "-")) for prefix in pod_prefixes)
+        row.extend([
+            colorize(rack.get("node_status", "-")),
+            colorize(rack.get("rack_status", "-")),
+            rack.get("xrk_name") or "",
+            colorize(rack.get("xrk_status", "-")),
+        ])
+        table.add_row(*row)
 
     if render:
-        console.print(table)
-    return table
+        Console().print(table)
+        return None
 
+    else:
+        return table
 
 
 def display_node_table(rack_names: list[str], render: bool = True) -> list[Table] | None: # NEW
@@ -580,19 +459,12 @@ def display_crossrack_table(rack_names: list[str], render: bool = True) -> list[
 
 def _fetch_node_data(rack_name: str) -> tuple[str, dict | Exception]: # NEW
     try:
-        # Parallelize all 3 kubectl operations
-        with ThreadPoolExecutor(max_workers=3) as executor:
-            validations_future = executor.submit(fetch_validations, rack_name)
-            entries_future = executor.submit(collect_pod_entries, [rack_name])
-            nodes_future = executor.submit(kubectl_get_json_nodes_by_rack, rack_name)
-
-            validations = validations_future.result()
-            entries = entries_future.result()
-            nodes_json = nodes_future.result()
-
+        validations = fetch_validations(rack_name)
         dashboard = process_node_validations(rack_name, validations)
-
-        # Extract firmware versions
+        entries = collect_pod_entries([rack_name])
+        
+        # Fetch node labels to get firmware versions
+        nodes_json = kubectl_get_json_nodes_by_rack(rack_name)
         firmware_versions = {}
         for node in nodes_json.get("items", []):
             node_name = node.get("metadata", {}).get("name")
@@ -610,23 +482,25 @@ def _fetch_node_data(rack_name: str) -> tuple[str, dict | Exception]: # NEW
         return rack_name, e
 
 
-def _build_node_table(rack_name: str, node_data: dict, render: bool = True) -> Table | None:
+def _build_node_table(rack_name: str, node_data: dict, render: bool = True) -> Table | None: # NEW
     console = Console()
+    required_pod_types = {"tspd"}
     entries = node_data["entries"]
     dashboard = node_data["dashboard"]
-    firmware_versions = node_data.get("firmware_versions", {})
-
-    # Build per-node tspd status (unchanged from your logic)
-    required_pod_types = {"tspd"}
+    firmware_versions = node_data.get("firmware_versions", {}) # Safely get firmware data
+    pod_ready_map = {}
+    pod_status_map = {}
+    pod_issues_map = defaultdict(list)
     pods_seen = defaultdict(set)
     per_node_pod_status = defaultdict(dict)
-    pod_issues_map = defaultdict(list)
-
-    for pod_base, ready, status, node in entries:
+    for name, ready, status, node in entries:
+        pod_base = base_name(name)
+        pod_ready_map[node] = ready
+        pod_status_map[node] = status
         if pod_base in required_pod_types:
             pods_seen[node].add(pod_base)
             per_node_pod_status[node][pod_base] = status
-            if (status or "").lower() != "running":
+            if status.lower() != "running":
                 pod_issues_map[node].append(f"[yellow]{pod_base} (not running)[/yellow]")
 
     all_nodes = [f"{rack_name}-gn{i}" for i in range(1, 10)]
@@ -636,55 +510,66 @@ def _build_node_table(rack_name: str, node_data: dict, render: bool = True) -> T
             pod_issues_map[node].append(f"[red]{pod_base} (missing)[/red]")
 
     context = get_kubectl_context()
-
-    # 10 columns total: "Validator" + gn1..gn9
     table = Table(title=f"{rack_name} - Node Dashboard - {context}", header_style="white")
-    table.add_column("Validator", style="cyan", no_wrap=True)
+    table.add_column("Validator", style="cyan")
     for i in range(1, 10):
         table.add_column(f"gn{i}", justify="center")
 
-    # ===== Top block: validators =====
     for validator, nodes in dashboard.items():
         row = [validator]
         for i in range(1, 10):
-            key = f"gn{i}"
-            status = nodes.get(key, {}).get("results_status", "N/A")
+            node = f"{rack_name}-gn{i}"
+            status = nodes.get(f"gn{i}", {}).get("results_status", "N/A")
             row.append(colorize(status))
         table.add_row(*row)
 
-    # ===== Pod block (e.g., tspd) =====
     table.add_section()
-    for pod_base in sorted(required_pod_types):
+    for pod_base in required_pod_types:
         row = [pod_base]
         for i in range(1, 10):
             node = f"{rack_name}-gn{i}"
             if pod_base in per_node_pod_status[node]:
                 status = per_node_pod_status[node][pod_base]
             elif pod_issues_map[node]:
-                status = "Missing"
+                status = "[red]Missing[/red]"
             else:
                 status = "-"
             row.append(colorize(status))
         table.add_row(*row)
 
-    # ===== FW block (own section) =====
+    # Add the new section for the firmware bundle row
     table.add_section()
     fw_row = ["FW Bundle Lowest"]
+    
+    found_versions = {
+        firmware_versions.get(f"{rack_name}-gn{i}")
+        for i in range(1, 10)
+        if firmware_versions.get(f"{rack_name}-gn{i}")
+    }
+
+    if len(found_versions) == 1:
+        color = "green"  # All nodes have the same version
+    elif len(found_versions) > 1:
+        color = "yellow" # Mismatched versions
+    else:
+        color = "white"  # Default (text will be "N/A" in red)
+
     for i in range(1, 10):
         node_name = f"{rack_name}-gn{i}"
         version = firmware_versions.get(node_name)
-        if version == EXPECTED_FW_VERSION:
-            fw_row.append(f"[green]{version}[/green]")
-        elif version:
-            fw_row.append(f"[red]{version}[/red]")
+        if version:
+            fw_row.append(f"[{color}]{version}[/{color}]")
         else:
-            fw_row.append("[red]Missing[/red]")
+            fw_row.append("[red]N/A[/red]")
+
     table.add_row(*fw_row)
 
     if render:
         console.print(table)
         return None
-    return table
+
+    else:
+        return table
 
 
 def _fetch_rack_crossrack_data(rack_name: str) -> tuple[str, dict | Exception]:
@@ -727,53 +612,46 @@ def _build_rack_crossrack_table(rack_name, validations, render=True):
 # ====================================================================================================
 # ===== PODS =========================================================================================
 # ====================================================================================================
-def collect_pod_entries(base_nodes):
+def collect_pod_entries(base_nodes, *, context: Optional[str] = None):
     """Collects only tspd pod entries for a list of base nodes"""
     entries = []
-    target_nodes = {f"{base}-gn{i}" for base in base_nodes for i in range(1, 10)}
+    nodes = [f"{base}-gn{i}" for base in base_nodes for i in range(1, 10)]
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        futures = {
+            executor.submit(get_pods_json, field_selector=f"spec.nodeName={node}", context=context): node
+            for node in nodes
+        }
+        for future in as_completed(futures):
+            node = futures[future]
+            try:
+                pods = future.result()
+            except Exception as e:
+                Console().print(f"[red]Failed to fetch pods for node {node}: {e}[/red]")
+                continue
 
-    # Fetch all pods once instead of per-node queries
-    try:
-        all_pods = get_pods_json()
-    except Exception as e:
-        Console().print(f"[red]Failed to fetch pods: {e}[/red]")
-        return []
+            for pod in pods:
+                pod_base = base_name(pod["metadata"]["name"])
+                if pod_base != "tspd":
+                    continue
+                if pod.get("status", {}).get("phase") == "Succeeded":
+                    continue
 
-    for pod in all_pods:
-        node_name = pod.get("spec", {}).get("nodeName", "")
-        if node_name not in target_nodes:
-            continue
+                status = pod["status"]["phase"]
+                node_name = pod["spec"]["nodeName"]
+                container_statuses = pod.get("status", {}).get("containerStatuses", [])
+                total = len(container_statuses)
+                ready = sum(int(bool(cs.get("ready"))) for cs in container_statuses)
 
-        pod_base = base_name(pod["metadata"]["name"])
-        if pod_base != "tspd":
-            continue
-        if pod.get("status", {}).get("phase") == "Succeeded":
-            continue
-
-        status = pod["status"]["phase"]
-        container_statuses = pod.get("status", {}).get("containerStatuses", [])
-        total = len(container_statuses)
-        ready = sum(int(bool(cs.get("ready"))) for cs in container_statuses)
-
-        entries.append((pod_base, f"{ready}/{total}", status, node_name))
+                entries.append((pod_base, f"{ready}/{total}", status, node_name))
 
     return sorted(entries, key=lambda x: (x[0], x[3]))
 
 
-def parse_pods(filter_base_nodes=None, pod_type=None):
-    """Parses pod statuses and returns a summary of pod states
-
-    Args:
-        filter_base_nodes: Filter by rack names
-        pod_type: If specified, only fetch this pod type (e.g., 'tspd')
-    """
+def parse_pods(filter_base_nodes=None, *, context: Optional[str] = None):
+    """Parses pod statuses and returns a summary of pod states"""
     summary = defaultdict(lambda: defaultdict(dict))
     pod_prefixes = set()
-
-    # Use label selector to filter at kubectl level if specific pod type requested
-    label_selector = f"app={pod_type}" if pod_type else None
-    pods = get_pods_json(label_selector=label_selector)
-
+    pods = get_pods_json(context=context)
     for pod in pods:
         metadata = pod.get("metadata", {})
         name = metadata.get("name", "")
@@ -786,13 +664,9 @@ def parse_pods(filter_base_nodes=None, pod_type=None):
         if filter_base_nodes and base not in filter_base_nodes:
             continue
 
-        # If pod_type specified, use that directly; otherwise detect from name
-        if pod_type:
-            pod_prefix = pod_type
-        else:
-            pod_prefix = next((p for p in ALLOWED_POD_PREFIXES if name.startswith(p)), None)
-            if not pod_prefix:
-                continue
+        pod_prefix = next((p for p in ALLOWED_POD_PREFIXES if name.startswith(p)), None)
+        if not pod_prefix:
+            continue
 
         pod_prefixes.add(pod_prefix)
         if not container_statuses:
@@ -839,13 +713,28 @@ def cluster_table_default_status(name):
         "xrk_status": "Not Made",
         "xrk_name": None,
         "health": None,
-        "pod_health": {}
+        "pod_health": {},
+        "valid": None,
+        "power_pod": None
     }
 
 
 def get_rack_health_info(nodes_json):
     """Returns a dictionary of rack health information"""
     racks = defaultdict(lambda: cluster_table_default_status(""))
+    # Track firmware versions per rack
+    rack_firmware = defaultdict(list)
+    # Track BMC match status per rack
+    rack_bmc_match = defaultdict(list)
+    # Track nodes with repair labels per rack
+    rack_repair_nodes = defaultdict(list)
+    # Track cordoned nodes per rack
+    rack_cordoned_nodes = defaultdict(list)
+    # Track cross-rack completion status per rack
+    rack_cross_rack_complete = defaultdict(list)
+    # Track power pod IDs per rack
+    rack_power_pod_ids = defaultdict(list)
+    
     for item in nodes_json.get("items", []):
         name = item["metadata"]["name"]
         rack = extract_rack_prefix(name)
@@ -858,20 +747,125 @@ def get_rack_health_info(nodes_json):
         ready = any(c["type"] == "Ready" and c["status"] == "True" for c in conditions)
         racks[rack]["rack"] = rack
         racks[rack]["nodes"][gn_name] = ready
+        
+        # Extract firmware bundle information from node labels
+        labels = item.get("metadata", {}).get("labels", {})
+        firmware = (
+            labels.get('validation.groq.io/firmware-bundle-lowest') or
+            labels.get('validation.groq.io/firmware-bundle') or
+            labels.get('firmware-bundle-lowest') or
+            labels.get('firmware-bundle')
+        )
+        if firmware and firmware != "unknown":
+            rack_firmware[rack].append(firmware)
+            
+        # Extract BMC match information from node labels
+        bmc_match = labels.get('groq.node.bmc-match')
+        if bmc_match is not None:
+            rack_bmc_match[rack].append((gn_name, bmc_match))
+            
+        # Check for cross-rack complete label
+        cross_rack_complete = labels.get('validation.groq.io/cross-rack-complete')
+        if cross_rack_complete == 'true':
+            rack_cross_rack_complete[rack].append(gn_name)
+            
+        # Extract power pod ID label
+        power_pod_id = labels.get('topology.groq.io/power-pod-id')
+        if power_pod_id:
+            rack_power_pod_ids[rack].append(power_pod_id)
+            
+        # Check for repair taint
+        taints = item.get("spec", {}).get("taints", [])
+        for taint in taints:
+            if taint.get("key") == "validation.groq.io/repair":
+                rack_repair_nodes[rack].append(gn_name)
+                break
+                
+        # Check if node is cordoned (unschedulable)
+        if item.get("spec", {}).get("unschedulable", False):
+            rack_cordoned_nodes[rack].append(gn_name)
 
     for rack_data in racks.values():
         found_nodes = set(rack_data["nodes"])
         node_statuses = rack_data["nodes"]
         missing = sorted(EXPECTED_NODES - found_nodes)
         not_ready = sorted(n for n in found_nodes if not node_statuses.get(n, False))
+        repair_nodes = rack_repair_nodes.get(rack_data["rack"], [])
+        cordoned_nodes = rack_cordoned_nodes.get(rack_data["rack"], [])
+        
         messages = []
-        if missing:
+        
+        # Priority: repair nodes first (highest priority)
+        if repair_nodes:
+            messages.append(f"repair: {', '.join(repair_nodes)}")
+        elif cordoned_nodes:
+            messages.append(f"cordoned: {', '.join(cordoned_nodes)}")
+        elif missing:
             messages.append(f"Missing: {', '.join(missing)}")
-
-        if not_ready:
+        elif not_ready:
             messages.append(f"NotReady: {', '.join(not_ready)}")
 
-        rack_data["health"] = "; ".join(messages) if messages else "Ready"
+        rack_data["health"] = "; ".join(messages) if messages else "Healthy"
+        
+        # Set valid status based on cross-rack completion
+        cross_rack_complete_nodes = rack_cross_rack_complete.get(rack_data["rack"], [])
+        if cross_rack_complete_nodes:
+            # If any nodes have cross-rack-complete=true, consider the rack valid
+            rack_data["valid"] = "True"
+        else:
+            rack_data["valid"] = "False"
+        
+        # Set power pod ID (use the first/most common value from the rack)
+        power_pod_ids = rack_power_pod_ids.get(rack_data["rack"], [])
+        if power_pod_ids:
+            # Use the most common power pod ID or first one if all same
+            unique_ids = list(set(power_pod_ids))
+            if len(unique_ids) == 1:
+                rack_data["power_pod"] = unique_ids[0]
+            else:
+                # If multiple different IDs, show all of them
+                rack_data["power_pod"] = ", ".join(unique_ids)
+        else:
+            rack_data["power_pod"] = None
+        
+        # Aggregate firmware versions for this rack
+        rack_name = rack_data["rack"]
+        firmware_versions = rack_firmware.get(rack_name, [])
+        if firmware_versions:
+            unique_versions = list(set(firmware_versions))
+            if len(unique_versions) == 1:
+                rack_data["firmware_version"] = unique_versions[0]
+            else:
+                rack_data["firmware_version"] = "Error"
+        else:
+            rack_data["firmware_version"] = None
+            
+        # Aggregate BMC match status for this rack
+        bmc_match_data = rack_bmc_match.get(rack_name, [])
+        if bmc_match_data:
+            # Check if all 9 nodes have bmc-match set to "true"
+            true_nodes = [gn for gn, value in bmc_match_data if value == "true"]
+            false_nodes = [gn for gn, value in bmc_match_data if value != "true"]
+            
+            if len(bmc_match_data) == 9 and len(true_nodes) == 9:
+                # All 9 nodes present and all are "true"
+                rack_data["bmc_match"] = "True"
+            elif false_nodes:
+                # At least one node is not "true", show "False: gnX" for the first false node
+                rack_data["bmc_match"] = f"False: {false_nodes[0]}"
+            elif len(bmc_match_data) < 9:
+                # Missing nodes, show "False: gnX" for the first missing node
+                present_gns = {gn for gn, _ in bmc_match_data}
+                all_gns = {f"gn{i}" for i in range(1, 10)}
+                missing_gns = sorted(all_gns - present_gns, key=lambda x: int(x[2:]))
+                if missing_gns:
+                    rack_data["bmc_match"] = f"False: {missing_gns[0]}"
+                else:
+                    rack_data["bmc_match"] = "False"
+            else:
+                rack_data["bmc_match"] = "False"
+        else:
+            rack_data["bmc_match"] = None
 
     return racks
 
@@ -962,45 +956,35 @@ def update_rack_statuses(items, racks):
     return total_success_nodes
 
 
-def get_data_cluster():
-    """Get cluster data, node and tspd pod health, and summaries"""
-    # Parallelize all three kubectl calls, filtering for tspd pods only
-    with ThreadPoolExecutor(max_workers=3) as executor:
+def get_data_cluster(context: Optional[str] = None):
+    """Get cluster data, node and tspd pod health, and summaries for a given kube context."""
+    with ThreadPoolExecutor(max_workers=2) as executor:
         futures = {
-            executor.submit(kubectl_get_json_resource, "nodes"): "nodes",
-            executor.submit(kubectl_get_json_validation): "gv",
-            executor.submit(parse_pods, None, "tspd"): "pods",  # Only fetch tspd pods
+            executor.submit(kubectl_get_json_resource, "nodes", context=context): "nodes",
+            executor.submit(kubectl_get_json_validation, None, context=context): "gv",
         }
         results = {name: future.result() for future, name in ((f, futures[f]) for f in as_completed(futures))}
 
-    # Parallelize post-processing operations
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        # Start firmware extraction in parallel with other processing
-        firmware_future = executor.submit(extract_firmware_mismatch_from_nodes_json, results["nodes"])
+    # Rack health info
+    racks = get_rack_health_info(results["nodes"])
+    rack_list = sorted(racks.values(), key=lambda r: natural_sort_key(r["rack"]))
 
-        # Rack health info (main thread)
-        racks = get_rack_health_info(results["nodes"])
-        rack_list = sorted(racks.values(), key=lambda r: natural_sort_key(r["rack"]))
+    # Parse only tspd pods
+    pod_summary, _ = parse_pods(context=context)  # existing function
+    tspd_summary = {rack: {"tspd": pod_summary[rack]["tspd"]} for rack in pod_summary if "tspd" in pod_summary[rack]}
 
-        # Parse only tspd pods
-        pod_summary, _ = results["pods"]
-        tspd_summary = {rack: {"tspd": pod_summary[rack]["tspd"]} for rack in pod_summary if "tspd" in pod_summary[rack]}
+    # Build pod health per rack (only tspd)
+    for rack in rack_list:
+        rack_name = rack["rack"]
+        states = tspd_summary.get(rack_name, {}).get("tspd", {})
+        rack["pod_health"] = {"tspd": summarize_status(states)}
 
-        # Build pod health per rack (only tspd)
-        for rack in rack_list:
-            rack_name = rack["rack"]
-            states = tspd_summary.get(rack_name, {}).get("tspd", {})
-            rack["pod_health"] = {"tspd": summarize_status(states)}
-
-        # Node and rack counts
-        total_nodes = len(rack_list) * 9
-        ready_nodes = sum(1 for r in rack_list for ready in r["nodes"].values() if ready)
-        node_complete = update_rack_statuses(results["gv"].get("items", []), racks)
-        rack_complete = sum(1 for r in rack_list if r["rack_status"] == "Success")
-        xrk_complete = sum(1 for r in rack_list if r["xrk_status"] == "Success")
-
-        # Get firmware data result
-        firmware_data = firmware_future.result()
+    # Node and rack counts
+    total_nodes = len(rack_list) * 9
+    ready_nodes = sum(1 for r in rack_list for ready in r["nodes"].values() if ready)
+    node_complete = update_rack_statuses(results["gv"].get("items", []), racks)
+    rack_complete = sum(1 for r in rack_list if r["rack_status"] == "Success")
+    xrk_complete = sum(1 for r in rack_list if r["xrk_status"] == "Success")
 
     return {
         "summary": {
@@ -1016,7 +1000,6 @@ def get_data_cluster():
             "xrk_ratio": xrk_complete / len(rack_list) if rack_list else 0.0,
         },
         "racks": rack_list,
-        "firmware_data": firmware_data,
     }
 
 
@@ -1079,6 +1062,73 @@ def print_failed_validations(output=None):
 # ====================================================================================================
 # ===== FAULTS / TICKETS =============================================================================
 # ====================================================================================================
+def handle_faults(args):
+    filter_arg = args.filter.lower() if args.filter else None
+
+    def run_command(cmd):
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            return result.stdout
+        except subprocess.CalledProcessError as e:
+            print(f"Error running command {' '.join(cmd)}:\n{e.stderr}", file=sys.stderr)
+            sys.exit(1)
+
+    def natural_keys(text):
+        def atoi(t):
+            return int(t) if t.isdigit() else t.lower()
+        return [atoi(c) for c in re.split(r'(\d+)', text)]
+
+    faults_json = run_command(['kubectl', 'get', 'faults', '-o', 'json'])
+    tickets_json = run_command(['kubectl', 'get', 'tickets', '-o', 'json'])
+
+    faults = json.loads(faults_json).get('items', [])
+    tickets = json.loads(tickets_json).get('items', [])
+
+    ticket_map = {t['metadata']['name']: t for t in tickets}
+
+    rows = []
+    header = ["COMPONENT", "FAULTTYPE", "PHASE", "JIRASTATUS", "TICKETURL"]
+    rows.append(header)
+
+    for fault in faults:
+        spec = fault.get('spec', {})
+        status = fault.get('status', {})
+        component = spec.get('component', 'N/A')
+
+        if filter_arg:
+            parts = component.split('/')
+            if len(parts) < 2:
+                continue
+            chassis_rack = (parts[0] + parts[1]).lower()
+            if chassis_rack != filter_arg:
+                continue
+
+        faulttype = spec.get('faultType', 'N/A')
+        phase = status.get('phase', 'N/A')
+
+        ticket_ref = status.get('ticketRef', {})
+        ticket_name = ticket_ref.get('name')
+
+        jira_status = 'N/A'
+        ticket_url = 'N/A'
+
+        if ticket_name and ticket_name in ticket_map:
+            ticket = ticket_map[ticket_name]
+            ticket_status = ticket.get('status', {})
+            jira_status = ticket_status.get('jiraStatus', 'N/A')
+            ticket_url = ticket_status.get('ticketURL', 'N/A')
+
+        rows.append([component, faulttype, phase, jira_status, ticket_url])
+
+    sorted_rows = [header] + sorted(rows[1:], key=lambda r: natural_keys(r[0]))
+    col_widths = [max(len(str(row[i])) for row in sorted_rows) for i in range(len(header))]
+
+    for i, row in enumerate(sorted_rows):
+        line = "  ".join(str(cell).ljust(col_widths[idx]) for idx, cell in enumerate(row))
+        print(line)
+        if i == 0:
+            print("  ".join("-" * w for w in col_widths))
+
 
 def fetch_faults():
     def run_command(cmd):
@@ -1089,12 +1139,8 @@ def fetch_faults():
             print(f"Error running command {' '.join(cmd)}:\n{e.stderr}", file=sys.stderr)
             sys.exit(1)
 
-    # Parallelize the kubectl calls
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        faults_future = executor.submit(run_command, ['kubectl', 'get', 'faults', '-o', 'json', '--chunk-size=0'])
-        tickets_future = executor.submit(run_command, ['kubectl', 'get', 'tickets', '-o', 'json', '--chunk-size=0'])
-        faults_json = faults_future.result()
-        tickets_json = tickets_future.result()
+    faults_json = run_command(['kubectl', 'get', 'faults', '-o', 'json'])
+    tickets_json = run_command(['kubectl', 'get', 'tickets', '-o', 'json'])
 
     faults = json.loads(faults_json).get('items', [])
     tickets = json.loads(tickets_json).get('items', [])
@@ -1186,92 +1232,3 @@ def expand_crossrack_names(racks):
         else:
             expanded.append(r)
     return expanded
-
-
-
-# ====================================================================================================
-# ===== FIRMWARE =====================================================================================
-# ====================================================================================================
-def extract_firmware_mismatch_from_nodes_json(
-    nodes_data: dict,
-    expected_version: str = EXPECTED_FW_VERSION,
-) -> Tuple[Set[str], Dict[str, Dict[str, str]]]:
-    """
-    Extract firmware mismatch info from already-fetched nodes JSON data.
-    Returns same format as fetch_firmware_mismatch_nodes().
-    """
-    mismatched: Set[str] = set()
-    details: Dict[str, Dict[str, str]] = {}
-
-    for item in nodes_data.get("items", []):
-        name = item.get("metadata", {}).get("name", "")
-        labels = item.get("metadata", {}).get("labels", {}) or {}
-        node_bad: Dict[str, str] = {}
-        for k in FW_LABEL_KEYS:
-            v = labels.get(k, "MISSING")
-            if v != expected_version:
-                node_bad[k] = v
-        if node_bad:
-            mismatched.add(name)
-            details[name] = node_bad
-
-    return mismatched, details
-
-
-def fetch_firmware_mismatch_nodes(
-    expected_version: str = EXPECTED_FW_VERSION,
-    selector: str = "groq.node=true",
-    context: str = "",
-) -> Tuple[Set[str], Dict[str, Dict[str, str]]]:
-    """
-    Return:
-      - a set of node names that have ANY GroqA[0-7] bundle label != expected_version (or MISSING)
-      - details: {node: {label_key: actual_value (or 'MISSING') for mismatches}}
-
-    Uses jsonpath to fetch only metadata (name + labels) for better performance.
-    """
-    # Use jsonpath to only fetch metadata.name and metadata.labels
-    jsonpath = '{range .items[*]}{.metadata.name}{"\\t"}{.metadata.labels}{"\\n"}{end}'
-    cmd = ["kubectl"]
-    if context:
-        cmd += ["--context", context]
-    cmd += ["get", "nodes", "-l", selector, "-o", f"jsonpath={jsonpath}"]
-
-    try:
-        raw = subprocess.check_output(cmd, text=True)
-    except subprocess.CalledProcessError as e:
-        return set(), {}
-
-    mismatched: Set[str] = set()
-    details: Dict[str, Dict[str, str]] = {}
-
-    # Parse the tab-separated output
-    for line in raw.strip().split('\n'):
-        if not line:
-            continue
-        parts = line.split('\t', 1)
-        if len(parts) != 2:
-            continue
-
-        name = parts[0]
-        labels_str = parts[1]
-
-        # Parse labels from map format: map[key1:val1 key2:val2]
-        labels = {}
-        if labels_str.startswith("map[") and labels_str.endswith("]"):
-            labels_content = labels_str[4:-1]  # Remove "map[" and "]"
-            for pair in labels_content.split():
-                if ':' in pair:
-                    key, val = pair.split(':', 1)
-                    labels[key] = val
-
-        node_bad: Dict[str, str] = {}
-        for k in FW_LABEL_KEYS:
-            v = labels.get(k, "MISSING")
-            if v != expected_version:
-                node_bad[k] = v
-        if node_bad:
-            mismatched.add(name)
-            details[name] = node_bad
-
-    return mismatched, details

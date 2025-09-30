@@ -15,7 +15,6 @@ from utils import (
     display_cluster_table,
     print_cluster_summary,
     print_failed_validations,
-    handle_faults,
     fetch_faults,
     display_faults,
     expand_crossrack_names,
@@ -24,31 +23,48 @@ from utils import (
 
 # Subcommand handlers
 def handle_cluster(args):
-    data = get_data_cluster()
-    #display_cluster_table(data, args.racks)
-    display_cluster_table(data["racks"], args.racks)
+    # Parallelize data and faults fetching
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        data_future = executor.submit(get_data_cluster)
+        faults_future = executor.submit(fetch_faults)
+        data = data_future.result()
+        faults = faults_future.result()
+
+    display_cluster_table(data["racks"], args.racks, firmware_data=data.get("firmware_data"))
     print_cluster_summary(None, data["summary"])
-    #print_failed_validations()
-    # show all faults for cluster
-    faults = fetch_faults()
     display_faults(faults)
 
 
 def handle_node(args):
-    display_node_table(args.racks, render=True)
-    faults = fetch_faults()
+    # Parallelize display and faults fetching
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        display_future = executor.submit(display_node_table, args.racks, True)
+        faults_future = executor.submit(fetch_faults)
+        display_future.result()
+        faults = faults_future.result()
+
     display_faults(faults, racks=args.racks)
 
 
 def handle_rack(args):
-    display_rack_table(args.racks)
-    faults = fetch_faults()
+    # Parallelize display and faults fetching
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        display_future = executor.submit(display_rack_table, args.racks)
+        faults_future = executor.submit(fetch_faults)
+        display_future.result()
+        faults = faults_future.result()
+
     display_faults(faults, racks=args.racks)
 
 
 def handle_crossrack(args):
-    display_crossrack_table(args.racks)
-    faults = fetch_faults()
+    # Parallelize display and faults fetching
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        display_future = executor.submit(display_crossrack_table, args.racks)
+        faults_future = executor.submit(fetch_faults)
+        display_future.result()
+        faults = faults_future.result()
+
     expanded_racks = expand_crossrack_names(args.racks)
     display_faults(faults, racks=expanded_racks)
 

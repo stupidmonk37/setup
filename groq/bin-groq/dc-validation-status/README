@@ -1,0 +1,51 @@
+# DC Validation Status
+
+A web-based dashboard for monitoring data center infrastructure health.
+
+## Quick Start
+
+### Prerequisites
+- Docker Desktop
+- kubectl configured with your clusters
+
+### Run the Application
+
+```bash
+# Build the container
+docker build -t dc-validation-status .
+
+# Run the container
+docker run -d --name dcvs -p 8000:8000 \
+  -v "$HOME/.kube:/root/.kube:ro" \
+  -e KUBECONFIG=/root/.kube/config \
+  --restart unless-stopped \
+  dc-validation-status
+```
+
+### Access the Dashboard
+Open your browser and go to: **http://localhost:8000**
+
+## Site Configuration
+
+The application expects site configuration files in a `sites/` directory structure.
+
+You can copy sites from the anodizer-sites repository:
+```bash
+cp -r /path/to/anodizer-sites/sites/ ./sites/
+```
+
+If you prefer to use your own site configurations, you can mount them:
+
+```bash
+docker run -d --name dcvs -p 8000:8000 \
+  -v "$HOME/.kube:/root/.kube:ro" \
+  -v /path/to/your/sites:/app/sites:ro \
+  dc-validation-status
+```
+
+## Usage
+- **Web Interface**: http://localhost:8000
+- **API Docs**: http://localhost:8000/docs
+- **View Logs**: `docker logs dcvs`
+- **Stop**: `docker stop dcvs`
+- **Restart**: `docker start dcvs`

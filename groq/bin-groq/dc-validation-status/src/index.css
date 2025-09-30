@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Optional: smoother fonts */
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+/* Fix dropdown to always open downward */
+.dropdown-down {
+  /* Force dropdown options to appear below the select element */
+  position: relative;
+  z-index: 1;
+}
+
+.dropdown-down option {
+  direction: ltr;
+}
+
+/* Ensure proper dropdown behavior on different browsers */
+select.dropdown-down {
+  /* Reset any existing appearance */
+  appearance: auto;
+  -webkit-appearance: menulist;
+  -moz-appearance: menulist;
+}
