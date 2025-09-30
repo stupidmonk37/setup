@@ -1,7 +1,6 @@
 
 export JIRA_TOKEN=ATATT3xFfGF0BS6j6LvuUEds0N45GnSFH2abWFtLj074BvS3j76yYkKMtBdicF46XiY20IyTbCgJ4LhmBXtUt0F8RMtOAoWAdV1icHTw5yTF9BJ_FCF6wgPFejL5uYIMDDgF_TdhpKonlIt5WgEcWUE9VSCJ4cmh9C4ipAlKdgSCiHPtOCxmROc=A099DA5F
 
-export GITHUB_TOKEN=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
 
 # silence sft if it's not installed
 if ! command -v sft >/dev/null; then
