@@ -242,5 +242,4 @@ else
 fi
 
 print "🧼 Reloading shell...\n"
->>>>>>> 6011f8b95697a313898c317205475dec13c71de7
 exec zsh

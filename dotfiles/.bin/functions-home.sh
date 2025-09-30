@@ -18,7 +18,7 @@ tmux_all_panes() {
 
 # Switch to a different Kubernetes context and namespace
 # (ie k8s-switch)
-k8s-switch() {
+k8s_switch() {
   echo "🔍 Select a Kubernetes context:"
   local context=$(kubectl config get-contexts -o name | fzf --prompt="Context > ")
   [[ -z "$context" ]] && echo "❌ No context selected." && return
